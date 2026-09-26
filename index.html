@@ -136,6 +136,13 @@ td.num,th.num{text-align:right}
 .portrait-note{display:none;margin:0 0 8px}
 @media (max-width:600px) and (orientation:portrait){.portrait-note{display:block}}
 @media (max-width:600px){header.top{padding:6px 10px} header.top .brand{font-size:16px} main{padding:10px} .timer{font-size:28px;min-width:90px}}
+.toggle.on{background:var(--sel);border-color:var(--sel);color:#fff;font-weight:700}
+.kmov{position:absolute;left:0;right:0;top:34%;text-align:center;color:#d0021b;font-weight:800;font-size:max(11px,calc(var(--cw)*0.26));line-height:1.15;background:rgba(255,255,255,.85);padding:2px 0;z-index:3;pointer-events:none;word-break:break-all;font-family:-apple-system,"Hiragino Sans",sans-serif}
+.card.opp .kmov{transform:rotate(180deg)}
+.scorebar{position:absolute;left:0;right:0;bottom:0;height:48%;display:flex;z-index:4}
+.scorebar button{flex:1;padding:0;border-radius:0;font-size:max(14px,calc(var(--cw)*0.36));font-weight:800;border:none;background:rgba(255,255,255,.92)}
+.scorebar button.o{color:var(--ok)} .scorebar button.x{color:var(--danger);border-left:1px solid var(--line)}
+.card.opp .scorebar{transform:rotate(180deg);top:0;bottom:auto}
 .roomcode{font-size:26px;font-weight:800;letter-spacing:.15em;font-variant-numeric:tabular-nums;padding:2px 12px;border:2px dashed var(--accent);border-radius:10px}
 .nav-badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;line-height:18px;text-align:center}
 .friend{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -168,13 +175,25 @@ td.num,th.num{text-align:right}
     <p class="hint">競技かるたの札配置を暗記する練習アプリです。記録を残すにはログインしてください。</p>
     <div id="fbLogin">
       <button class="primary" id="btnGoogle" style="width:100%">Googleでログイン</button>
-      <div class="or">またはメールアドレス</div>
-      <input id="email" type="email" placeholder="メールアドレス" autocomplete="email">
-      <input id="password" type="password" placeholder="パスワード（6文字以上）" autocomplete="current-password">
+      <div class="or">または ID とパスワード</div>
+      <input id="loginId" placeholder="ID（半角英数字 3〜20文字）" autocomplete="username" autocapitalize="off" spellcheck="false">
+      <input id="idPassword" type="password" placeholder="パスワード（6文字以上）" autocomplete="current-password">
       <div class="row">
-        <button id="btnEmailLogin" style="flex:1">ログイン</button>
-        <button id="btnEmailSignup" style="flex:1">新規登録</button>
+        <button id="btnIdLogin" style="flex:1">ログイン</button>
+        <button id="btnIdSignup" style="flex:1">新規登録</button>
       </div>
+      <p class="hint" style="margin:6px 0 0">ID で登録すると、メールアドレスを登録せずに使えます。パスワードを忘れると自分では再設定できないので、控えておいてください。</p>
+      <details style="margin-top:12px">
+        <summary class="hint" style="cursor:pointer">メールアドレスでログイン（以前メールで登録した方）</summary>
+        <div style="margin-top:8px">
+          <input id="email" type="email" placeholder="メールアドレス" autocomplete="email">
+          <input id="password" type="password" placeholder="パスワード（6文字以上）" autocomplete="current-password">
+          <div class="row">
+            <button id="btnEmailLogin" style="flex:1">ログイン</button>
+            <button id="btnEmailSignup" style="flex:1">新規登録</button>
+          </div>
+        </div>
+      </details>
       <p class="hint" id="loginErr" style="color:var(--danger)"></p>
     </div>
     <div class="or">ログインせずに試す</div>
@@ -525,7 +544,7 @@ const Store = {
   async savePositions(p){
     if (user.guest) { localStorage.setItem("ka_positions", JSON.stringify(p)); return; }
     const {doc,setDoc} = fb.fs;
-    await setDoc(doc(fb.db,"users",user.uid), {positions:p, name:user.name, updatedAt:Date.now()}, {merge:true});
+    await setDoc(doc(fb.db,"users",user.uid), {positions:p, updatedAt:Date.now()}, {merge:true});
   },
   async listRecords(){
     if (user.guest) return JSON.parse(localStorage.getItem("ka_records")||"[]");
@@ -564,7 +583,7 @@ async function initFirebase(){
   const app = appM.initializeApp(FIREBASE_CONFIG);
   fb = { auth: authM.getAuth(app), db: fsM.getFirestore(app), am: authM, fs: fsM };
   authM.onAuthStateChanged(fb.auth, u => {
-    if (u) { user = {uid:u.uid, name:u.displayName||u.email, guest:false}; onLogin(); }
+    if (u) { user = {uid:u.uid, name: u.displayName || idFromEmail(u.email) || u.email, guest:false}; onLogin(); }
     else if (!user || !user.guest) { user = null; show("login"); }
   });
 }
@@ -616,6 +635,27 @@ const authErr = e => { const m = {
   "auth/user-not-found":"登録されていないメールアドレスです","auth/email-already-in-use":"このメールアドレスは登録済みです",
   "auth/weak-password":"パスワードは6文字以上にしてください","auth/invalid-email":"メールアドレスの形式が正しくありません",
   "auth/popup-closed-by-user":"ログインがキャンセルされました"}; $("#loginErr").textContent = m[e.code] || e.message; };
+// ID ログイン：ID を架空のメールアドレスに置き換えて Firebase のメール/パスワード認証を使う（本物のメールは集めない）
+const ID_DOMAIN = "id.karuta-anki.app";
+function idFromEmail(e){ return e && e.endsWith("@"+ID_DOMAIN) ? e.slice(0, -ID_DOMAIN.length-1) : ""; }
+function idToEmail(){
+  const id = $("#loginId").value.trim().toLowerCase();
+  if (!/^[a-z0-9_-]{3,20}$/.test(id)) { $("#loginErr").textContent = "ID は半角の英小文字・数字・「_」「-」で3〜20文字にしてください"; return null; }
+  return id + "@" + ID_DOMAIN;
+}
+const idErr = e => { const m = {
+  "auth/invalid-credential":"ID かパスワードが違います","auth/wrong-password":"ID かパスワードが違います","auth/user-not-found":"ID かパスワードが違います",
+  "auth/email-already-in-use":"この ID はすでに使われています。別の ID にしてください","auth/weak-password":"パスワードは6文字以上にしてください",
+  "auth/too-many-requests":"試行回数が多すぎます。しばらくしてからお試しください"}; $("#loginErr").textContent = m[e.code] || e.message; };
+$("#btnIdLogin").onclick = async () => {
+  const em = idToEmail(); if (!em) return;
+  try { await fb.am.signInWithEmailAndPassword(fb.auth, em, $("#idPassword").value); } catch(e){ idErr(e); }
+};
+$("#btnIdSignup").onclick = async () => {
+  const em = idToEmail(); if (!em) return;
+  try { await fb.am.createUserWithEmailAndPassword(fb.auth, em, $("#idPassword").value); } catch(e){ idErr(e); }
+};
+$("#idPassword").addEventListener("keydown", e => { if (e.key==="Enter" && !e.isComposing) $("#btnIdLogin").click(); });
 $("#btnGoogle").onclick = async () => {
   try { await fb.am.signInWithPopup(fb.auth, new fb.am.GoogleAuthProvider()); } catch(e){ authErr(e); }
 };
@@ -734,9 +774,11 @@ function deal(useFixed){
   const all = shuffle(POEMS.map(p=>p[0]));
   const mine = all.slice(0,PER_SIDE), opp = all.slice(PER_SIDE, PER_SIDE*2);
   const cards = arrangeMine(mine, useFixed).map(x => ({...x, side:"me"}));
-  // 相手陣（完全ランダム）
-  for (const x of fillRandom(opp, new Set(), [0,0,0])) cards.push({...x, side:"opp"});
-  for (const c of cards){ c.open = true; c.answer = null; c.correct = null; }
+  // 相手陣（ランダムに配ってから、自陣と同じく左右の端へ詰める）
+  const oppCards = fillRandom(opp, new Set(), [0,0,0]).map(x => ({...x, _t:Math.random()}));
+  packSide(oppCards);
+  for (const x of oppCards) cards.push({no:x.no, row:x.row, col:x.col, side:"opp"});
+  for (const c of cards){ c.open = true; c.answer = null; c.correct = null; c.flip = false; c.km = false; c.self = null; }
   return cards;
 }
 
@@ -750,7 +792,7 @@ function stopTimer(){ if (timerId){ clearInterval(timerId); timerId=null; } }
 $("#btnDeal").onclick = () => {
   const setSec = Math.min(900, Math.max(10, (+$("#tMin").value||0)*60 + (+$("#tSec").value||0)));
   $("#tMin").value = Math.floor(setSec/60); $("#tSec").value = setSec%60;
-  G = { mode, setSec, cards: deal($("#useFixed").checked), phase:"arrange", sel:null };
+  G = { mode, setSec, cards: deal($("#useFixed").checked), phase:"arrange", sel:null, tapMode:"move", selfScore:false, scoring:null };
   $("#resultPanel").classList.add("hidden");
   show("game"); renderGame();
 };
@@ -759,25 +801,33 @@ function renderGame(){
   if (G.mode==="battle") return renderBattleGame();
   const P = G.phase;
   $("#phaseLabel").textContent = {arrange:"配置の確認", memorize:"暗記中", recall:"答え合わせ", result:"結果"}[P] + (G.mode==="record"?"（記録）":"（練習）");
+  const tapHint = {flip:"札をタップすると裏返ります（もう一度タップで表に戻ります）。", kimari:"札をタップすると決まり字が赤字で表示されます（もう一度タップで消えます）。"}[G.tapMode];
   const hint = {
-    arrange:"自陣の札をタップ → 移動先のマス（または別の札）をタップで移動・入れ替え。準備ができたら「暗記開始」。",
-    memorize:"暗記中も自陣の札は動かせます。早めに終えるときは「終了して裏返す」。",
-    recall: G.mode==="record" ? "開けたい札をタップして、上の句（決まり字以上）を入力します。" : "開けたい札をタップして、思い出してから確認します。",
+    arrange: tapHint || "自陣の札をタップ → 移動先のマス（または別の札）をタップで移動・入れ替え。準備ができたら「暗記開始」。",
+    memorize: tapHint || "暗記中も自陣の札は動かせます。早めに終えるときは「終了して裏返す」。",
+    recall: G.mode==="record" ? "開けたい札をタップして、上の句（決まり字以上）を入力します。"
+          : G.selfScore ? "開けたい札をタップ → 思い出してから表を確認し、○か×を付けます（開けた札をタップすると付け直せます）。"
+          : "開けたい札をタップして、思い出してから確認します。",
     result:""
   }[P];
   $("#gameHint").textContent = hint;
   const btns = $("#gameBtns"); btns.innerHTML = "";
   const mk = (t,cls,fn) => { const b=document.createElement("button"); b.textContent=t; if(cls) b.className=cls; b.onclick=fn; btns.appendChild(b); return b; };
+  const tg = (t,key) => { const b = mk(t, "toggle"+(G.tapMode===key?" on":""), () => { G.tapMode = G.tapMode===key ? "move" : key; G.sel = null; renderGame(); }); b.setAttribute("aria-pressed", G.tapMode===key); };
   if (P==="arrange"){
     $("#timer").textContent = fmtTime(G.setSec); $("#timer").classList.remove("low");
     mk("配り直す","",()=>{ G.cards = deal($("#useFixed").checked); G.sel=null; renderBoard(); });
     mk("暗記開始","primary",startMemorize);
+    tg("タップで裏返す","flip"); tg("タップで決まり字を出す","kimari");
   } else if (P==="memorize"){
     mk("終了して裏返す","primary",()=>{ if(confirm("暗記を終了して札を裏返しますか？")) endMemorize(); });
+    tg("タップで裏返す","flip"); tg("タップで決まり字を出す","kimari");
   } else if (P==="recall"){
     if (G.mode==="practice"){
       mk("全て開ける","",()=>{ G.cards.forEach(c=>c.open=true); renderBoard(); updateScore(); });
-      mk("終わる","primary",()=>{ G.phase="result"; renderGame(); });
+      const sb = mk("自己採点", "toggle"+(G.selfScore?" on":""), () => { G.selfScore = !G.selfScore; G.scoring = null; renderGame(); });
+      sb.setAttribute("aria-pressed", !!G.selfScore);
+      mk("終わる","primary",finishPractice);
     } else {
       mk("終了して記録","primary",finishRecord);
     }
@@ -804,10 +854,37 @@ function tick(){
 function endMemorize(){
   stopTimer();
   G.usedSec = Math.min(G.setSec, Math.round((Date.now()-G.startAt)/1000));
-  G.phase = "recall"; G.sel = null;
-  G.cards.forEach(c => c.open = false);
-  $("#timer").textContent = fmtTime(G.usedSec); $("#timer").classList.remove("low");
+  G.phase = "recall"; G.sel = null; G.tapMode = "move";
+  G.cards.forEach(c => { c.open = false; c.flip = false; c.km = false; });
+  $("#timer").classList.remove("low");
+  G.recallStart = Date.now();
+  timerId = setInterval(recallTick, 500); recallTick();
   renderGame();
+}
+// 答え合わせの経過時間
+function recallTick(){
+  if (!G || G.mode==="battle") return;
+  $("#timer").textContent = "経過 " + fmtTime((Date.now() - G.recallStart)/1000);
+}
+function stopRecallClock(){
+  if (G.recallSec == null && G.recallStart) G.recallSec = Math.round((Date.now() - G.recallStart)/1000);
+  stopTimer();
+  if (G.recallSec != null) $("#timer").textContent = "経過 " + fmtTime(G.recallSec);
+}
+function finishPractice(){
+  stopRecallClock();
+  G.phase = "result"; G.scoring = null;
+  renderGame();
+  const side = s => G.cards.filter(c=>c.side===s);
+  const sc = cs => [cs.filter(c=>c.self===true).length, cs.filter(c=>c.self!==null && c.self!==undefined).length];
+  const [mo, mt] = sc(side("me")), [oo, ot] = sc(side("opp"));
+  const rp = $("#resultPanel"); rp.classList.remove("hidden");
+  rp.innerHTML = `<div class="row" style="gap:28px">
+    <div><div class="hint">暗記時間</div><div class="big">${fmtTime(G.usedSec)}</div></div>
+    <div><div class="hint">答え合わせの時間</div><div class="big">${fmtTime(G.recallSec||0)}</div></div>
+    ${mt+ot ? `<div><div class="hint">自己採点：自陣</div><div class="big">${mo}/${mt}</div></div>
+    <div><div class="hint">自己採点：相手陣</div><div class="big">${oo}/${ot}</div></div>` : ""}</div>
+    <p class="hint">練習モードの結果は保存されません。</p>`;
 }
 function beep(){
   try{ const ac=new (window.AudioContext||window.webkitAudioContext)(); const o=ac.createOscillator(), g=ac.createGain();
@@ -819,7 +896,12 @@ function updateScore(){
   const el = $("#scoreLabel");
   if (G.phase==="arrange" || G.phase==="memorize"){ el.textContent=""; return; }
   const opened = G.cards.filter(c=>c.open).length;
-  if (G.mode==="practice"){ el.innerHTML = `開けた札 <b>${opened}</b> / 50`; return; }
+  if (G.mode==="practice"){
+    const sc = side => { const cs=G.cards.filter(c=>c.side===side); return [cs.filter(c=>c.self===true).length, cs.filter(c=>c.self===true||c.self===false).length]; };
+    const [mo,mt]=sc("me"), [oo,ot]=sc("opp");
+    el.innerHTML = `開けた札 <b>${opened}</b> / 50` + (mt+ot ? `　自己採点　自陣 <b>○${mo}</b>/${mt}　相手陣 <b>○${oo}</b>/${ot}` : "");
+    return;
+  }
   const s = side => { const cs=G.cards.filter(c=>c.side===side); return [cs.filter(c=>c.correct).length, cs.filter(c=>c.open).length]; };
   const [mc,mo]=s("me"), [oc,oo]=s("opp");
   el.innerHTML = `自陣 <b>${mc}</b>/${mo}　相手陣 <b>${oc}</b>/${oo}　（開けた札 ${opened}/50）`;
@@ -842,7 +924,20 @@ function cardEl(c, faceUp){
       d.appendChild(b);
       d.title = `${c.no} ${CARD[c.no].km}` + (c.correct ? "" : `（入力：${c.answer||"なし"}）`);
     }
+    if (G && G.mode==="practice" && (c.self===true || c.self===false)){
+      d.classList.add(c.self?"ok":"ng");
+      const b=document.createElement("div"); b.className="badge"; b.textContent = (c.self?"○ ":"× ") + CARD[c.no].km; d.appendChild(b);
+    }
+    if (G && G.scoring===c){
+      const bar=document.createElement("div"); bar.className="scorebar";
+      const mkb=(t,cls,v)=>{ const x=document.createElement("button"); x.className=cls; x.textContent=t; x.onclick=e=>{ e.stopPropagation(); setSelfScore(c,v); }; bar.appendChild(x); };
+      mkb("○","o",true); mkb("×","x",false);
+      d.appendChild(bar);
+    }
   } else { const b=document.createElement("div"); b.className="back"; d.appendChild(b); }
+  if (c.km && G && ["arrange","memorize"].includes(G.phase)){
+    const k=document.createElement("div"); k.className="kmov"; k.textContent=CARD[c.no].km; d.appendChild(k);
+  }
   if (!d.title) d.title = faceUp ? `${c.no} ${CARD[c.no].km}` : "";
   return d;
 }
@@ -850,7 +945,9 @@ function renderBoard(){
   const B = $("#board"); B.innerHTML = "";
   const at = {}; for (const c of G.cards) at[`${c.side}-${c.row}-${c.col}`] = c;
   const lab = t => { const l=document.createElement("div"); l.className="sidelabel"; l.textContent=t; B.appendChild(l); };
-  const movable = ["arrange","memorize","lobby","countdown"].includes(G.phase);
+  const study = G.mode!=="battle" && ["arrange","memorize"].includes(G.phase);
+  const movable = G.mode==="battle" ? battleCanMove() : (study && (G.tapMode||"move")==="move");
+  const hideAll = G.mode==="battle" && ["lobby","countdown"].includes(G.phase);
   const drawRow = (side, r) => {
     for (let c=0;c<COLS;c++){
       const cell = document.createElement("div"); cell.className="cell";
@@ -861,10 +958,16 @@ function renderBoard(){
         cell.onclick = () => onMyCell(r,c);
       }
       if (card){
-        const faceUp = G.phase!=="recall" && G.phase!=="result" ? true : card.open;
-        const el = cardEl(card, G.phase==="result" ? true : faceUp);
+        let faceUp = G.phase!=="recall" && G.phase!=="result" ? true : card.open;
+        if (G.phase==="result") faceUp = true;
+        if (hideAll) faceUp = false;
+        if (study && card.flip) faceUp = false;
+        const el = cardEl(card, faceUp);
         if (G.sel===card) el.classList.add("sel");
         if (G.phase==="recall" && !card.open) el.onclick = e => { e.stopPropagation(); openCard(card); };
+        else if (G.phase==="recall" && G.mode==="practice" && G.selfScore && G.scoring!==card) el.onclick = e => { e.stopPropagation(); G.scoring = card; renderBoard(); };
+        if (study && G.tapMode==="flip") el.onclick = e => { e.stopPropagation(); card.flip = !card.flip; renderBoard(); };
+        if (study && G.tapMode==="kimari") el.onclick = e => { e.stopPropagation(); card.km = !card.km; renderBoard(); };
         cell.appendChild(el);
       }
       B.appendChild(cell);
@@ -891,7 +994,11 @@ function onMyCell(r,c){
 let pending = null;
 function openCard(card){
   if (G.mode==="battle" && (G.myDone || G.timeUp || G.phase!=="recall")) return;
-  if (G.mode==="practice"){ card.open = true; renderBoard(); updateScore(); maybeAllOpen(); return; }
+  if (G.mode==="practice"){
+    card.open = true;
+    if (G.selfScore) G.scoring = card;
+    renderBoard(); updateScore(); maybeAllOpen(); return;
+  }
   pending = card;
   $("#dlgTitle").textContent = `${card.side==="me"?"自陣":"相手陣"} ${ROW_NAME[card.row]} の札は？`;
   $("#answerInput").value = "";
@@ -914,18 +1021,23 @@ function maybeAllOpen(){
   if (G.mode==="battle") return;
   if (G.cards.every(c=>c.open)){
     if (G.mode==="record") finishRecord(true);
-    else { G.phase="result"; renderGame(); }
+    else if (!G.selfScore || G.cards.every(c=>c.self===true || c.self===false)) finishPractice();
   }
+}
+function setSelfScore(card, v){
+  card.self = v; G.scoring = null;
+  renderBoard(); updateScore(); maybeAllOpen();
 }
 
 async function finishRecord(auto){
   const unopened = G.cards.filter(c=>!c.open).length;
   if (!auto && unopened && !confirm(`まだ開けていない札が${unopened}枚あります。不正解として記録しますか？`)) return;
+  stopRecallClock();
   const side = s => G.cards.filter(c=>c.side===s);
   const me = side("me"), op = side("opp");
   const rec = {
     createdAt: Date.now(),
-    setSec: G.setSec, memorizeSec: G.usedSec,
+    setSec: G.setSec, memorizeSec: G.usedSec, answerSec: G.recallSec || 0,
     selfCorrect: me.filter(c=>c.correct).length, selfTotal: me.length,
     oppCorrect: op.filter(c=>c.correct).length, oppTotal: op.length,
     selfRate: pct(me.filter(c=>c.correct).length, me.length),
@@ -938,6 +1050,7 @@ async function finishRecord(auto){
   const rp = $("#resultPanel"); rp.classList.remove("hidden");
   rp.innerHTML = `<div class="row" style="gap:28px">
     <div><div class="hint">暗記時間</div><div class="big">${fmtTime(rec.memorizeSec)}</div></div>
+    <div><div class="hint">答え合わせの時間</div><div class="big">${fmtTime(rec.answerSec)}</div></div>
     <div><div class="hint">自陣の暗記率</div><div class="big">${rec.selfRate}%</div><div class="hint">${rec.selfCorrect} / ${rec.selfTotal}</div></div>
     <div><div class="hint">相手陣の暗記率</div><div class="big">${rec.oppRate}%</div><div class="hint">${rec.oppCorrect} / ${rec.oppTotal}</div></div>
     <div class="hint" id="saveState">保存中…</div></div>${missList()}`;
@@ -1193,7 +1306,7 @@ async function renderBattle(){
       rows.map(r => `<tr><td>${fmtDate(r.createdAt)}</td><td>${esc(names[r.oppUid]||"相手")}</td>
         <td><b style="color:${r.result>0?"var(--ok)":r.result<0?"var(--danger)":"inherit"}">${r.result>0?"勝ち":r.result<0?"負け":"引き分け"}</b></td>
         <td class="num">${r.me.correct} − ${r.opp.correct}</td><td class="num">${r.me.own}/25</td><td class="num">${r.me.other}/25</td>
-        <td class="num">${r.me.done?fmtTime(r.me.finishMs/1000):"時間切れ"}</td></tr>`).join("");
+        <td class="num">${r.me.resigned?"降参":r.opp.resigned?"相手が降参":r.me.done?fmtTime(r.me.finishMs/1000):"時間切れ"}</td></tr>`).join("");
   } catch(e){ console.error(e); }
 }
 async function renderInvites(){
@@ -1295,7 +1408,7 @@ async function enterRoom(code){
   G = { mode:"battle", code, isHost, room, phase:"lobby", sel:null, finished:false, saved:false,
         cards: layout.map(x=>({no:x.no, side:"me", row:x.row, col:x.col, open:true, answer:null, correct:null})),
         ans: (mine && mine.answers) || {}, myDone: !!(mine && mine.done), myFinishMs: mine ? mine.finishMs : null,
-        myVote: !!(mine && mine.endVote), opp:null, oppUid:null, oppName:"相手", unsubs:[] };
+        myVote: !!(mine && mine.endVote), myResigned: !!(mine && mine.resigned), opp:null, oppUid:null, oppName:"相手", unsubs:[] };
   G.unsubs.push(onSnapshot(roomRef, s => {
     if (!G || G.code!==code) return;
     G.room = s.data();
@@ -1308,6 +1421,7 @@ async function enterRoom(code){
         G.opp = ps.data() || null;
         setOppLayout(G.opp ? G.opp.layout : []);
         maybeEarlyEnd();
+        if (G.opp && G.opp.resigned && !G.finished && G.phase!=="lobby") finalizeBattle();
         if (G.phase==="recall") checkFinish();
         renderBoard(); battleScore(); renderBattleButtons();
       }));
@@ -1344,6 +1458,9 @@ function applyAns(){
     else { c.open = true; c.correct = null; }
   }
 }
+// 対戦中に札を動かせるのは、暗記時間の最初の1/3まで
+function battleMoveEnd(){ return G.room.memStartMs + G.room.memSec*1000/3; }
+function battleCanMove(){ return G && G.mode==="battle" && G.phase==="memorize" && G.room && serverNow() < battleMoveEnd(); }
 function battlePhase(){
   const r = G.room;
   if (!r || r.status==="closed") return "closed";
@@ -1368,7 +1485,13 @@ function battleTick(force){
   let txt = "", low = false;
   if (p==="lobby") txt = fmtTime(r.memSec);
   else if (p==="countdown") txt = "開始まで " + Math.max(1, Math.ceil((r.memStartMs-now)/1000));
-  else if (p==="memorize"){ const s=(r.memEndMs-now)/1000; txt = fmtTime(Math.ceil(s)); low = s<=60; }
+  else if (p==="memorize"){
+    const s=(r.memEndMs-now)/1000; txt = fmtTime(Math.ceil(s)); low = s<=60;
+    const can = battleCanMove();
+    if (can !== G.lastCanMove){ G.lastCanMove = can; if (!can) G.sel = null; renderBoard(); }
+    const ml = $("#moveLeft");
+    if (ml) ml.textContent = can ? `札を動かせるのはあと ${fmtTime(Math.ceil((battleMoveEnd()-now)/1000))}` : "札を動かせる時間は終わりました";
+  }
   else if (p==="recall"){
     const s = (r.memEndMs + r.ansSec*1000 - now)/1000;
     txt = G.myDone ? "解答終了" : fmtTime(Math.ceil(s)); low = !G.myDone && s<=60;
@@ -1386,9 +1509,9 @@ function renderBattleGame(){
     lobby: (G.isHost ? `部屋コード <span class="roomcode">${esc(G.code)}</span> を相手に伝えてください。` : `部屋 ${esc(G.code)} に参加しました。`) +
            `　暗記 ${fmtTime(r.memSec)}／解答の制限時間 ${fmtTime(r.ansSec)}。` +
            (opp ? `<b>${esc(opp)}</b> が参加しています。` : "相手の参加を待っています…") +
-           `<br>自陣の札はこの間も動かせます（相手の画面にも反映されます）。` + (G.isHost ? "" : "ホストが開始するのを待っています。"),
+           `<br>札は開始と同時に表になります。札を動かせるのは暗記時間の最初の1/3（${fmtTime(r.memSec/3)}）までです。` + (G.isHost ? "" : "ホストが開始するのを待っています。"),
     countdown: "まもなく暗記が始まります。",
-    memorize: `暗記中も自陣の札は動かせます。相手：<b>${esc(opp||"相手")}</b>`,
+    memorize: `相手：<b>${esc(opp||"相手")}</b>　<b id="moveLeft"></b>`,
     recall: G.timeUp ? "制限時間になりました。結果を集計しています…" : G.myDone ? "全ての札に解答しました。相手の終了を待っています…" : "開けたい札をタップして、上の句（決まり字以上）を入力します。全50枚に解答すると終了です。",
     result: "", closed: "ホストが部屋を閉じました。「対戦」タブから新しく部屋を作るか参加してください。"
   }[P];
@@ -1404,6 +1527,9 @@ function renderBattleButtons(){
   } else if (P==="memorize"){
     const oppVote = G.opp && G.opp.endVote;
     mk(G.myVote ? "終了に同意済み（相手待ち）" : (oppVote ? "相手が終了を希望：同意して裏返す" : "早めに終えることを提案"), G.myVote?"":"primary", voteEnd, G.myVote);
+    mk("降参","danger",resign);
+  } else if (P==="countdown" || P==="recall"){
+    mk("降参","danger",resign);
   } else if (P==="result" || P==="closed"){
     mk("対戦メニューへ","primary",()=>show("battle"));
     if (P==="result" && G.oppUid) mk("同じ相手にもう一度申し込む","",()=>{ const u=G.oppUid, st={memSec:G.room.memSec, ansSec:G.room.ansSec}; leaveBattle(); createRoom(u, st); });
@@ -1416,6 +1542,14 @@ function battleScore(){
   const ok = cs => cs.filter(c=>G.ans[c.no] && G.ans[c.no].ok).length;
   const answered = Object.keys(G.ans).length;
   el.innerHTML = `自陣 <b>${ok(mine)}</b>　相手陣 <b>${ok(theirs)}</b>　（解答 ${answered}/50）　<span class="hint">${esc(G.oppName)}：解答 ${G.opp ? (G.opp.answered||0) : 0}/50${G.opp && G.opp.done ? "（終了）" : ""}</span>`;
+}
+async function resign(){
+  if (!G || G.finished) return;
+  if (!confirm("降参しますか？（この対戦は負けになります）")) return;
+  G.myResigned = true;
+  if ($("#answerDlg").open){ pending=null; $("#answerDlg").close(); }
+  try { await fb.fs.setDoc(fb.fs.doc(fb.db,"rooms",G.code,"players",user.uid), {resigned:true}, {merge:true}); } catch(e){ console.error(e); }
+  finalizeBattle();
 }
 async function startBattle(){
   const now = serverNow(), r = G.room;
@@ -1446,13 +1580,14 @@ async function battleAnswered(card){
   catch(e){ console.error(e); toast("解答の送信に失敗しました"); }
   checkFinish();
 }
-function sideStats(ans, ownNos, done, finishMs){
+function sideStats(ans, ownNos, done, finishMs, resigned){
   let correct=0, own=0, other=0;
   for (const [no,a] of Object.entries(ans||{})) if (a && a.ok){ correct++; if (ownNos.has(+no)) own++; else other++; }
-  return {correct, own, other, done:!!done, finishMs: done ? finishMs : null};
+  return {correct, own, other, done:!!done, finishMs: done ? finishMs : null, resigned:!!resigned};
 }
 // 勝敗：①正解数 ②両者終了ならタイム ③相手陣の正解数 ④終了した方 → それでも同じなら引き分け
 function decide(A, B){
+  if (A.resigned!==B.resigned) return A.resigned ? -1 : 1;     // 降参した方の負け
   if (A.correct!==B.correct) return A.correct>B.correct ? 1 : -1;
   if (A.done && B.done && A.finishMs!==B.finishMs) return A.finishMs<B.finishMs ? 1 : -1;
   if (A.other!==B.other) return A.other>B.other ? 1 : -1;
@@ -1469,23 +1604,24 @@ async function finalizeBattle(){
   G.finished = true; G.phase = "result";
   const myNos = new Set(G.cards.filter(c=>c.side==="me").map(c=>c.no));
   const oppNos = new Set(G.cards.filter(c=>c.side==="opp").map(c=>c.no));
-  const A = sideStats(G.ans, myNos, G.myDone, G.myFinishMs);
-  const B = G.opp ? sideStats(G.opp.answers, oppNos, G.opp.done, G.opp.finishMs) : {correct:0,own:0,other:0,done:false,finishMs:null};
+  const A = sideStats(G.ans, myNos, G.myDone, G.myFinishMs, G.myResigned);
+  const B = G.opp ? sideStats(G.opp.answers, oppNos, G.opp.done, G.opp.finishMs, G.opp.resigned) : {correct:0,own:0,other:0,done:false,finishMs:null,resigned:false};
   const res = decide(A, B);
   let reason = "";
-  if (A.correct!==B.correct) reason = "正解数の差";
+  if (A.resigned!==B.resigned) reason = A.resigned ? "あなたが降参しました" : `${G.oppName}が降参しました`;
+  else if (A.correct!==B.correct) reason = "正解数の差";
   else if (A.done && B.done && A.finishMs!==B.finishMs) reason = "正解数が同じため、解答終了までのタイムで判定";
   else if (A.other!==B.other) reason = "正解数が同じため、相手陣の正解数で判定";
   else if (A.done!==B.done) reason = "正解数・相手陣の正解数が同じため、時間内に解答を終えた方の勝ち";
   renderBattleGame();
-  const tm = s => s.done ? fmtTime(s.finishMs/1000) : "時間切れ";
+  const tm = s => s.resigned ? "降参" : (A.resigned||B.resigned) ? "—" : s.done ? fmtTime(s.finishMs/1000) : "時間切れ";
   const rp = $("#resultPanel"); rp.classList.remove("hidden");
   rp.innerHTML = `<div class="verdict ${res>0?"win":res<0?"lose":""}">${res>0?"勝ち":res<0?"負け":"引き分け"}</div>
     <p class="hint">${reason}</p>
     <table><tr><th></th><th class="num">正解数</th><th class="num">自陣</th><th class="num">相手陣</th><th class="num">解答タイム</th></tr>
     <tr><td><b>あなた</b></td><td class="num">${A.correct}/50</td><td class="num">${A.own}/25</td><td class="num">${A.other}/25</td><td class="num">${tm(A)}</td></tr>
     <tr><td><b>${esc(G.oppName)}</b></td><td class="num">${B.correct}/50</td><td class="num">${B.own}/25</td><td class="num">${B.other}/25</td><td class="num">${tm(B)}</td></tr></table>
-    <p class="hint" id="saveState">保存中…</p>${missList()}`;
+    <p class="hint" id="saveState">保存中…</p>${Object.keys(G.ans).length ? missList() : ""}`;
   if (G.saved) return; G.saved = true;
   const {doc,collection,addDoc,getDocs,runTransaction,updateDoc} = fb.fs;
   try {
