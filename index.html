@@ -6,7 +6,7 @@
 <title>札配置暗記</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Yuji+Syuku&family=Yuji+Mai&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#f3efe6; --panel:#fffdf8; --ink:#1d1b17; --ink2:#5a554b; --muted:#8c867a; --line:#d9d2c3;
@@ -16,6 +16,7 @@
   --sel:#e0892b;
   --s1:#2a78d6; --s2:#eb6834;
   --cw:52px;
+  --card-font:"Yuji Syuku","Shippori Mincho B1",serif; --card-weight:400;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -71,8 +72,8 @@ h3{font-size:15px;margin:16px 0 8px}
 .sidelabel{grid-column:1 / -1;font-size:11px;color:rgba(0,0,0,.55);height:14px;line-height:14px}
 
 .card{position:absolute;inset:0;border-radius:4px;cursor:pointer;user-select:none;-webkit-user-select:none;transition:transform .15s}
-.card .face{position:absolute;inset:0;background:var(--card-face);border:calc(var(--cw)*0.07) solid var(--card-edge);border-radius:4px;display:flex;flex-direction:row-reverse;justify-content:center;align-items:flex-start;padding:calc(var(--cw)*0.07) calc(var(--cw)*0.04);gap:calc(var(--cw)*0.05);box-shadow:0 1px 2px rgba(0,0,0,.25);color:#1b1a16}
-.card .face span{writing-mode:vertical-rl;font-family:"Shippori Mincho B1",serif;font-weight:800;font-size:calc(var(--cw)*0.17);line-height:1;letter-spacing:.02em;white-space:nowrap}
+.card .face{position:absolute;inset:0;background:var(--card-face);border:calc(var(--cw)*0.07) solid var(--card-edge);border-radius:4px;display:flex;flex-direction:row-reverse;justify-content:center;align-items:flex-start;padding:calc(var(--cw)*0.085) calc(var(--cw)*0.02) 0;gap:calc(var(--cw)*0.035);box-shadow:0 1px 2px rgba(0,0,0,.25);color:#1b1a16}
+.card .face span{writing-mode:vertical-rl;font-family:var(--card-font);font-weight:var(--card-weight);font-size:calc(var(--cw)*0.21*var(--fs,1));line-height:1;letter-spacing:0;white-space:nowrap}
 .card .back{position:absolute;inset:0;border-radius:4px;background:radial-gradient(circle at 30% 25%,var(--card-back),var(--card-back2));border:calc(var(--cw)*0.07) solid #173024;box-shadow:0 1px 2px rgba(0,0,0,.35)}
 .card .back::after{content:"";position:absolute;inset:18%;border:1px solid rgba(255,255,255,.18);border-radius:2px}
 .card.opp{transform:rotate(180deg)}
@@ -135,6 +136,13 @@ td.num,th.num{text-align:right}
 .portrait-note{display:none;margin:0 0 8px}
 @media (max-width:600px) and (orientation:portrait){.portrait-note{display:block}}
 @media (max-width:600px){header.top{padding:6px 10px} header.top .brand{font-size:16px} main{padding:10px} .timer{font-size:28px;min-width:90px}}
+.roomcode{font-size:26px;font-weight:800;letter-spacing:.15em;font-variant-numeric:tabular-nums;padding:2px 12px;border:2px dashed var(--accent);border-radius:10px}
+.nav-badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;line-height:18px;text-align:center}
+.friend{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.friend:last-child{border-bottom:none}
+.friend .nm{font-weight:700;min-width:120px}
+.verdict{font-size:34px;font-weight:800;font-family:"Shippori Mincho B1",serif}
+.verdict.win{color:var(--ok)} .verdict.lose{color:var(--danger)}
 .result .big{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
 </style>
 </head>
@@ -145,6 +153,7 @@ td.num,th.num{text-align:right}
   <nav>
     <button data-go="home">練習する</button>
     <button data-go="positions">定位置</button>
+    <button data-go="battle" id="navBattle">対戦</button>
     <button data-go="stats">記録</button>
   </nav>
   <span class="user" id="userName"></span>
@@ -193,6 +202,13 @@ td.num,th.num{text-align:right}
         <button data-p="60">1分</button><button data-p="180">3分</button><button data-p="300">5分</button><button data-p="600">10分</button><button data-p="900">15分</button>
       </span>
     </div>
+
+    <h3>札の書体</h3>
+    <select id="fontSel">
+      <option value="syuku">行書風（Yuji Syuku）</option>
+      <option value="mai">筆文字（Yuji Mai）</option>
+      <option value="mincho">明朝（しっぽり明朝）</option>
+    </select>
 
     <h3>自陣の並べ方</h3>
     <label class="row"><input type="checkbox" id="useFixed" checked> 登録した定位置を使う <span class="hint" id="fixedCount"></span></label>
@@ -244,6 +260,46 @@ td.num,th.num{text-align:right}
         <p class="hint" id="posStatus"></p>
       </div>
       <div class="board-wrap"><div class="pos-board" id="posBoard"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== battle ===== -->
+<section id="view-battle" class="hidden">
+  <div class="panel hidden" id="battleNeedLogin"><h2>対戦</h2><p>対戦するにはログインが必要です（ゲストでは使えません）。</p></div>
+  <div id="battleMain">
+    <div class="panel hidden" id="invitePanel">
+      <h2>対戦の申し込み</h2>
+      <div id="inviteList"></div>
+    </div>
+    <div class="panel">
+      <h2>ニックネーム</h2>
+      <div class="row"><input id="nickInput" maxlength="16" placeholder="例：たくや"><button id="btnNick">保存</button></div>
+      <p class="hint">対戦相手や、相手の友達リストに表示される名前です。未設定だと「友達(1)」のように番号で表示されます。</p>
+    </div>
+    <div class="panel">
+      <h2>部屋を作る</h2>
+      <div class="row">
+        <span>暗記時間</span><input type="number" id="bMin" class="inline-num" min="0" max="15" value="15"> 分
+        <input type="number" id="bSec" class="inline-num" min="0" max="59" step="5" value="0"> 秒
+      </div>
+      <div class="row" style="margin-top:8px">
+        <span>解答の制限時間</span><input type="number" id="bAns" class="inline-num" min="1" max="60" value="15"> 分
+      </div>
+      <div class="row" style="margin-top:12px"><button class="primary" id="btnCreateRoom">部屋を作る</button></div>
+      <p class="hint">作った部屋の6桁のコードを相手に伝えます。友達リストの「対戦を申し込む」でも、この設定で部屋が作られます。</p>
+    </div>
+    <div class="panel">
+      <h2>部屋に入る</h2>
+      <div class="row"><input id="roomCodeInput" inputmode="numeric" maxlength="6" placeholder="6桁の部屋コード" style="width:160px"><button class="primary" id="btnJoinRoom">入る</button></div>
+    </div>
+    <div class="panel">
+      <h2>友達</h2>
+      <div id="friendList"><p class="hint">一度対戦した相手が、自動で友達に登録されます。</p></div>
+    </div>
+    <div class="panel">
+      <h2>対戦の記録</h2>
+      <div style="overflow-x:auto"><table id="battleHistory"></table></div>
     </div>
   </div>
 </section>
@@ -428,7 +484,9 @@ function toast(msg){ const t=document.createElement("div"); t.className="toast";
 // 取り札の表記：濁点なし・5/5/残り の3行
 function cardLines(no){
   const s = CARD[no].shimo.replace(/\s/g,"").normalize("NFD").replace(/[゙゚]/g,"").normalize("NFC");
-  return [s.slice(0,5), s.slice(5,10), s.slice(10)];
+  if (s.length <= 15) return [s.slice(0,5), s.slice(5,10), s.slice(10)];
+  const a = Math.ceil(s.length/3);
+  return [s.slice(0,a), s.slice(a,a*2), s.slice(a*2)];
 }
 
 // 入力のゆれを吸収する正規化（歴史的仮名遣い・濁点・カタカナ・小書き）
@@ -517,23 +575,30 @@ async function initFirebase(){
 let positions = {};      // {cardNo: "row-col"}
 let current = "login";
 function show(name){
-  if (current==="game" && name!=="game" && G && G.phase!=="done" && G.phase!=="result") {
-    if (!confirm("進行中の暗記を中断しますか？")) return;
-    stopTimer(); G=null;
+  if (current==="game" && name!=="game" && G) {
+    if (G.mode==="battle"){
+      if (!G.finished && G.phase!=="closed" && !confirm("対戦を抜けますか？")) return;
+      leaveBattle();
+    } else if (G.phase!=="done" && G.phase!=="result") {
+      if (!confirm("進行中の暗記を中断しますか？")) return;
+      stopTimer(); G=null;
+    }
   }
   current = name;
-  for (const v of ["login","home","game","positions","stats"]) $("#view-"+v).classList.toggle("hidden", v!==name);
+  for (const v of ["login","home","game","positions","stats","battle"]) $("#view-"+v).classList.toggle("hidden", v!==name);
   $("#topbar").classList.toggle("hidden", name==="login");
-  $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go==="home")));
+  $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go===(G&&G.mode==="battle"?"battle":"home"))));
   if (name==="home") refreshHome();
   if (name==="positions") renderPositions();
   if (name==="stats") renderStats();
+  if (name==="battle") renderBattle();
   window.scrollTo(0,0);
 }
 $$("header nav button").forEach(b => b.onclick = () => show(b.dataset.go));
 
 async function onLogin(){
-  $("#userName").textContent = user.guest ? "ゲスト" : user.name;
+  updateUserName();
+  if (!user.guest) initOnline().catch(e=>console.error(e));
   try { positions = await Store.loadPositions(); } catch(e){ console.error(e); positions = {}; toast("定位置の読み込みに失敗しました"); }
   show("home");
 }
@@ -541,6 +606,8 @@ async function onLogin(){
 /* ---------- ログイン ---------- */
 $("#btnGuest").onclick = () => { user = {uid:"guest", name:"ゲスト", guest:true}; onLogin(); };
 $("#btnLogout").onclick = async () => {
+  if (G && G.mode==="battle") leaveBattle();
+  if (unsubInv){ unsubInv(); unsubInv=null; }
   if (user && !user.guest && fb) await fb.am.signOut(fb.auth);
   user = null; show("login");
 };
@@ -580,6 +647,10 @@ function refreshHome(){
   if (!v) v = Math.round(Math.max(30, Math.min(64, (window.innerWidth - 90) / 16)));
   $("#sizeRange").value = v; document.documentElement.style.setProperty("--cw", v+"px");
 })();
+const FONTS = { syuku:['"Yuji Syuku","Shippori Mincho B1",serif',400], mai:['"Yuji Mai","Shippori Mincho B1",serif',400], mincho:['"Shippori Mincho B1",serif',800] };
+function applyFont(k){ const f = FONTS[k]||FONTS.syuku; document.documentElement.style.setProperty("--card-font", f[0]); document.documentElement.style.setProperty("--card-weight", f[1]); }
+(function initFont(){ let k="syuku"; try{ k = localStorage.getItem("ka_font")||k; }catch(e){} $("#fontSel").value=k; applyFont(k); })();
+$("#fontSel").onchange = e => { applyFont(e.target.value); try{localStorage.setItem("ka_font",e.target.value);}catch(_){} };
 $("#sizeRange").oninput = e => { document.documentElement.style.setProperty("--cw", e.target.value+"px"); try{localStorage.setItem("ka_size",e.target.value);}catch(_){} };
 
 /* =========================================================
@@ -644,10 +715,8 @@ function packSide(cards){
   }
   return cards;
 }
-function deal(useFixed){
-  const all = shuffle(POEMS.map(p=>p[0]));
-  const mine = all.slice(0,PER_SIDE), opp = all.slice(PER_SIDE, PER_SIDE*2);
-  // 自陣：定位置の札は登録した段・左右・順番を使い、端から詰めて並べる
+// 自陣：定位置の札は登録した段・左右・順番を使い、端から詰めて並べる
+function arrangeMine(mine, useFixed){
   const my = [], occ = new Set(), counts=[0,0,0], rest=[];
   for (const no of mine){
     const p = useFixed && positions[no];
@@ -659,7 +728,12 @@ function deal(useFixed){
   }
   for (const x of fillRandom(rest, occ, counts)) my.push({...x, _t:Math.random()});
   packSide(my);
-  const cards = my.map(({no,row,col}) => ({no, side:"me", row, col}));
+  return my.map(({no,row,col}) => ({no, row, col}));
+}
+function deal(useFixed){
+  const all = shuffle(POEMS.map(p=>p[0]));
+  const mine = all.slice(0,PER_SIDE), opp = all.slice(PER_SIDE, PER_SIDE*2);
+  const cards = arrangeMine(mine, useFixed).map(x => ({...x, side:"me"}));
   // 相手陣（完全ランダム）
   for (const x of fillRandom(opp, new Set(), [0,0,0])) cards.push({...x, side:"opp"});
   for (const c of cards){ c.open = true; c.answer = null; c.correct = null; }
@@ -682,6 +756,7 @@ $("#btnDeal").onclick = () => {
 };
 
 function renderGame(){
+  if (G.mode==="battle") return renderBattleGame();
   const P = G.phase;
   $("#phaseLabel").textContent = {arrange:"配置の確認", memorize:"暗記中", recall:"答え合わせ", result:"結果"}[P] + (G.mode==="record"?"（記録）":"（練習）");
   const hint = {
@@ -756,9 +831,11 @@ function cardEl(c, faceUp){
   d.className = "card" + (c.side==="opp"?" opp":"");
   if (faceUp){
     const f = document.createElement("div"); f.className="face";
-    for (const l of cardLines(c.no)){ const s=document.createElement("span"); s.textContent=l; f.appendChild(s); }
+    const lines = cardLines(c.no);
+    f.style.setProperty("--fs", 5/Math.max(5,...lines.map(l=>l.length)));
+    for (const l of lines){ const s=document.createElement("span"); s.textContent=l; f.appendChild(s); }
     d.appendChild(f);
-    if (G && G.mode==="record" && c.correct!==null){
+    if (G && (G.mode==="record" || G.mode==="battle") && c.correct!==null){
       d.classList.add(c.correct?"ok":"ng");
       const b=document.createElement("div"); b.className="badge";
       b.textContent = CARD[c.no].km;
@@ -773,7 +850,7 @@ function renderBoard(){
   const B = $("#board"); B.innerHTML = "";
   const at = {}; for (const c of G.cards) at[`${c.side}-${c.row}-${c.col}`] = c;
   const lab = t => { const l=document.createElement("div"); l.className="sidelabel"; l.textContent=t; B.appendChild(l); };
-  const movable = G.phase==="arrange" || G.phase==="memorize";
+  const movable = ["arrange","memorize","lobby","countdown"].includes(G.phase);
   const drawRow = (side, r) => {
     for (let c=0;c<COLS;c++){
       const cell = document.createElement("div"); cell.className="cell";
@@ -807,11 +884,13 @@ function onMyCell(r,c){
   if (card){ [card.row,card.col,G.sel.row,G.sel.col] = [G.sel.row,G.sel.col,card.row,card.col]; }
   else { G.sel.row=r; G.sel.col=c; }
   G.sel = null; renderBoard();
+  if (G.mode==="battle") pushLayout();
 }
 
 /* ---------- 札を開ける ---------- */
 let pending = null;
 function openCard(card){
+  if (G.mode==="battle" && (G.myDone || G.timeUp || G.phase!=="recall")) return;
   if (G.mode==="practice"){ card.open = true; renderBoard(); updateScore(); maybeAllOpen(); return; }
   pending = card;
   $("#dlgTitle").textContent = `${card.side==="me"?"自陣":"相手陣"} ${ROW_NAME[card.row]} の札は？`;
@@ -822,7 +901,8 @@ function openCard(card){
 function submitAnswer(text){
   if (!pending) return;
   pending.answer = text; pending.correct = judge(pending.no, text); pending.open = true;
-  pending = null; $("#answerDlg").close();
+  const answered = pending; pending = null; $("#answerDlg").close();
+  if (G.mode==="battle"){ battleAnswered(answered); return; }
   renderBoard(); updateScore(); maybeAllOpen();
 }
 $("#answerForm").onsubmit = e => { e.preventDefault(); submitAnswer($("#answerInput").value); };
@@ -831,6 +911,7 @@ $("#dlgGiveup").onclick = () => submitAnswer("");
 $("#dlgCancel").onclick = () => { pending=null; $("#answerDlg").close(); };
 
 function maybeAllOpen(){
+  if (G.mode==="battle") return;
   if (G.cards.every(c=>c.open)){
     if (G.mode==="record") finishRecord(true);
     else { G.phase="result"; renderGame(); }
@@ -1017,6 +1098,413 @@ function drawHistory(){
     if (!confirm("この記録を削除しますか？")) return;
     try { await Store.deleteRecord(b.dataset.del); renderStats(); } catch(e){ toast("削除に失敗しました"); }
   });
+}
+
+/* =========================================================
+   オンライン：ニックネーム・友達・対戦
+   ========================================================= */
+let clockOffset = 0;                       // サーバー時刻 − 端末時刻
+const serverNow = () => Date.now() + clockOffset;
+let myNick = "";
+let unsubInv = null, invites = [];
+let friends = {};                          // uid -> {num, wins, losses, draws, lastPlayed}
+
+function updateUserName(){
+  if (!user) return;
+  $("#userName").textContent = user.guest ? "ゲスト" : (myNick || user.name);
+}
+async function initOnline(){
+  const {doc,setDoc,getDoc,serverTimestamp,onSnapshot,collection} = fb.fs;
+  const ref = doc(fb.db,"profiles",user.uid);
+  const t0 = Date.now();
+  await setDoc(ref, {ping: serverTimestamp()}, {merge:true});
+  const snap = await getDoc(ref);
+  const t1 = Date.now();
+  const d = snap.data() || {};
+  if (d.ping && d.ping.toMillis) clockOffset = d.ping.toMillis() - (t0+t1)/2;
+  myNick = d.nickname || "";
+  updateUserName();
+  if (unsubInv) unsubInv();
+  let first = true;
+  unsubInv = onSnapshot(collection(fb.db,"invites",user.uid,"items"), s => {
+    invites = s.docs.map(x=>({id:x.id, ...x.data()})).filter(i => Date.now()-(i.createdAt||0) < 3*3600e3);
+    if (!first && s.docChanges().some(c=>c.type==="added")) toast("対戦の申し込みが届きました（「対戦」タブ）");
+    first = false;
+    updateBattleBadge();
+    if (current==="battle") renderInvites();
+  });
+}
+function updateBattleBadge(){
+  const n = invites.length;
+  $("#navBattle").innerHTML = "対戦" + (n ? `<span class="nav-badge">${n}</span>` : "");
+}
+async function getNick(uid){
+  try { const s = await fb.fs.getDoc(fb.fs.doc(fb.db,"profiles",uid)); return (s.data()||{}).nickname || ""; }
+  catch(e){ return ""; }
+}
+function friendLabel(uid, nick){
+  if (nick) return nick;
+  const f = friends[uid];
+  return f ? `友達(${f.num})` : "相手";
+}
+async function loadFriends(){
+  const {collection,getDocs} = fb.fs;
+  const s = await getDocs(collection(fb.db,"users",user.uid,"friends"));
+  friends = {}; s.docs.forEach(d => friends[d.id] = d.data());
+  return friends;
+}
+
+/* ---------- 対戦メニュー ---------- */
+async function renderBattle(){
+  const guest = !user || user.guest;
+  $("#battleNeedLogin").classList.toggle("hidden", !guest);
+  $("#battleMain").classList.toggle("hidden", guest);
+  if (guest) return;
+  $("#nickInput").value = myNick;
+  renderInvites();
+  try { await loadFriends(); } catch(e){ console.error(e); }
+  // 友達一覧（ニックネームは毎回最新を取得）
+  const list = Object.entries(friends).sort((a,b)=>(b[1].lastPlayed||0)-(a[1].lastPlayed||0));
+  const FL = $("#friendList");
+  if (!list.length) FL.innerHTML = `<p class="hint">一度対戦した相手が、自動で友達に登録されます。</p>`;
+  else {
+    const nicks = await Promise.all(list.map(([uid]) => getNick(uid)));
+    FL.innerHTML = "";
+    list.forEach(([uid,f],i) => {
+      const row = document.createElement("div"); row.className = "friend";
+      row.innerHTML = `<span class="nm">${esc(friendLabel(uid, nicks[i]))}</span>
+        <span class="hint">${f.wins||0}勝 ${f.losses||0}敗${f.draws?` ${f.draws}分`:""}</span>
+        <span class="hint">最終対戦 ${f.lastPlayed?fmtDate(f.lastPlayed):"—"}</span>
+        <button style="margin-left:auto">対戦を申し込む</button>`;
+      row.querySelector("button").onclick = () => createRoom(uid);
+      FL.appendChild(row);
+    });
+  }
+  // 対戦の記録
+  try {
+    const {collection,getDocs,query,orderBy,limit} = fb.fs;
+    const s = await getDocs(query(collection(fb.db,"users",user.uid,"battles"), orderBy("createdAt","desc"), limit(30)));
+    const rows = s.docs.map(d=>d.data());
+    const T = $("#battleHistory");
+    if (!rows.length){ T.innerHTML = `<tr><td class="hint">まだ対戦の記録がありません。</td></tr>`; return; }
+    const names = {};
+    await Promise.all([...new Set(rows.map(r=>r.oppUid))].map(async u => names[u] = friendLabel(u, await getNick(u))));
+    T.innerHTML = `<tr><th>日時</th><th>相手</th><th>結果</th><th class="num">正解数</th><th class="num">自陣</th><th class="num">相手陣</th><th class="num">タイム</th></tr>` +
+      rows.map(r => `<tr><td>${fmtDate(r.createdAt)}</td><td>${esc(names[r.oppUid]||"相手")}</td>
+        <td><b style="color:${r.result>0?"var(--ok)":r.result<0?"var(--danger)":"inherit"}">${r.result>0?"勝ち":r.result<0?"負け":"引き分け"}</b></td>
+        <td class="num">${r.me.correct} − ${r.opp.correct}</td><td class="num">${r.me.own}/25</td><td class="num">${r.me.other}/25</td>
+        <td class="num">${r.me.done?fmtTime(r.me.finishMs/1000):"時間切れ"}</td></tr>`).join("");
+  } catch(e){ console.error(e); }
+}
+async function renderInvites(){
+  const P = $("#invitePanel");
+  P.classList.toggle("hidden", !invites.length);
+  if (!invites.length) return;
+  const L = $("#inviteList"); L.innerHTML = "";
+  for (const inv of invites){
+    const row = document.createElement("div"); row.className = "friend";
+    row.innerHTML = `<span class="nm">…</span><span class="hint">部屋 ${esc(inv.code)}</span>
+      <button class="primary" style="margin-left:auto">参加する</button><button>断る</button>`;
+    const [ok, no] = row.querySelectorAll("button");
+    const del = () => fb.fs.deleteDoc(fb.fs.doc(fb.db,"invites",user.uid,"items",inv.id)).catch(()=>{});
+    ok.onclick = async () => { await del(); joinRoom(inv.code); };
+    no.onclick = () => del();
+    L.appendChild(row);
+    getNick(inv.from).then(n => row.querySelector(".nm").textContent = friendLabel(inv.from, n) + " から対戦の申し込み");
+  }
+}
+$("#btnNick").onclick = async () => {
+  const v = $("#nickInput").value.trim().slice(0,16);
+  try {
+    await fb.fs.setDoc(fb.fs.doc(fb.db,"profiles",user.uid), {nickname:v}, {merge:true});
+    myNick = v; updateUserName(); toast("ニックネームを保存しました");
+  } catch(e){ toast("保存に失敗しました"); }
+};
+$("#btnCreateRoom").onclick = () => createRoom(null);
+$("#btnJoinRoom").onclick = () => {
+  const c = $("#roomCodeInput").value.replace(/[０-９]/g,x=>String.fromCharCode(x.charCodeAt(0)-0xFEE0)).replace(/\D/g,"");
+  if (c.length!==6) { toast("6桁の部屋コードを入力してください"); return; }
+  joinRoom(c);
+};
+
+/* ---------- 部屋 ---------- */
+function battleSettings(){
+  const memSec = Math.min(900, Math.max(10, (+$("#bMin").value||0)*60 + (+$("#bSec").value||0)));
+  const ansSec = Math.min(3600, Math.max(60, (+$("#bAns").value||15)*60));
+  return {memSec, ansSec};
+}
+async function createRoom(inviteUid, settings){
+  const {doc,getDoc,setDoc} = fb.fs;
+  const {memSec, ansSec} = settings || battleSettings();
+  const all = shuffle(POEMS.map(p=>p[0]));
+  for (let i=0; i<10; i++){
+    const code = String(Math.floor(100000 + Math.random()*900000));
+    const ref = doc(fb.db,"rooms",code);
+    try {
+      const ex = await getDoc(ref);
+      if (ex.exists() && Date.now() - (ex.data().createdAt||0) < 24*3600e3) continue;
+      await setDoc(ref, {code, host:user.uid, guest:null, status:"lobby", memSec, ansSec,
+        hostCards: all.slice(0,PER_SIDE), guestCards: all.slice(PER_SIDE,PER_SIDE*2),
+        memStartMs:0, memEndMs:0, createdAt:Date.now()});
+      if (inviteUid) await setDoc(doc(fb.db,"invites",inviteUid,"items",code), {from:user.uid, code, createdAt:Date.now()});
+      await enterRoom(code);
+      return;
+    } catch(e){ console.warn(e); }
+  }
+  toast("部屋を作れませんでした。もう一度お試しください");
+}
+async function joinRoom(code){
+  const {doc,runTransaction} = fb.fs;
+  const ref = doc(fb.db,"rooms",code);
+  try {
+    await runTransaction(fb.db, async tx => {
+      const s = await tx.get(ref);
+      if (!s.exists()) throw new Error("部屋が見つかりません");
+      const r = s.data();
+      if (r.host===user.uid || r.guest===user.uid) return;
+      if (r.guest) throw new Error("この部屋はすでに2人そろっています");
+      if (r.status!=="lobby") throw new Error("この部屋はもう使えません");
+      tx.update(ref, {guest:user.uid});
+    });
+    await enterRoom(code);
+  } catch(e){ toast(e.message || "部屋に入れませんでした"); }
+}
+
+let layoutTimer = null;
+function pushLayout(){
+  clearTimeout(layoutTimer);
+  layoutTimer = setTimeout(() => {
+    if (!G || G.mode!=="battle") return;
+    const layout = G.cards.filter(c=>c.side==="me").map(({no,row,col})=>({no,row,col}));
+    fb.fs.setDoc(fb.fs.doc(fb.db,"rooms",G.code,"players",user.uid), {layout}, {merge:true}).catch(console.error);
+  }, 250);
+}
+
+async function enterRoom(code){
+  if (G && G.mode==="battle") leaveBattle();
+  const {doc,getDoc,setDoc,onSnapshot} = fb.fs;
+  const roomRef = doc(fb.db,"rooms",code);
+  const room = (await getDoc(roomRef)).data();
+  const isHost = room.host===user.uid;
+  const myRef = doc(fb.db,"rooms",code,"players",user.uid);
+  const ps = await getDoc(myRef);
+  const mine = ps.exists() ? ps.data() : null;
+  const layout = (mine && mine.layout) || arrangeMine(isHost ? room.hostCards : room.guestCards, true);
+  if (!mine) await setDoc(myRef, {layout, answers:{}, answered:0, correct:0, done:false, finishMs:null, endVote:false, joinedAt:Date.now()});
+  try { await loadFriends(); } catch(e){}
+  G = { mode:"battle", code, isHost, room, phase:"lobby", sel:null, finished:false, saved:false,
+        cards: layout.map(x=>({no:x.no, side:"me", row:x.row, col:x.col, open:true, answer:null, correct:null})),
+        ans: (mine && mine.answers) || {}, myDone: !!(mine && mine.done), myFinishMs: mine ? mine.finishMs : null,
+        myVote: !!(mine && mine.endVote), opp:null, oppUid:null, oppName:"相手", unsubs:[] };
+  G.unsubs.push(onSnapshot(roomRef, s => {
+    if (!G || G.code!==code) return;
+    G.room = s.data();
+    const oppUid = G.isHost ? G.room.guest : G.room.host;
+    if (oppUid && oppUid!==G.oppUid){
+      G.oppUid = oppUid;
+      getNick(oppUid).then(n => { if (G && G.oppUid===oppUid){ G.oppName = friendLabel(oppUid, n); renderBattleGame(); } });
+      G.unsubs.push(onSnapshot(doc(fb.db,"rooms",code,"players",oppUid), ps => {
+        if (!G || G.code!==code) return;
+        G.opp = ps.data() || null;
+        setOppLayout(G.opp ? G.opp.layout : []);
+        maybeEarlyEnd();
+        if (G.phase==="recall") checkFinish();
+        renderBoard(); battleScore(); renderBattleButtons();
+      }));
+    }
+    battleTick(true);
+  }));
+  $("#resultPanel").classList.add("hidden");
+  show("game");
+  stopTimer(); timerId = setInterval(() => battleTick(false), 250);
+  battleTick(true);
+}
+function leaveBattle(){
+  if (!G || G.mode!=="battle") return;
+  stopTimer();
+  G.unsubs.forEach(u => { try{u();}catch(e){} });
+  if (G.isHost && G.room && G.room.status==="lobby")
+    fb.fs.updateDoc(fb.fs.doc(fb.db,"rooms",G.code), {status:"closed"}).catch(()=>{});
+  G = null;
+}
+function setOppLayout(layout){
+  const old = {}; G.cards.filter(c=>c.side==="opp").forEach(c => old[c.no] = c);
+  G.cards = G.cards.filter(c=>c.side==="me").concat((layout||[]).map(x => {
+    const o = old[x.no] || {no:x.no, side:"opp", open:true, answer:null, correct:null};
+    o.row = x.row; o.col = COLS-1-x.col;               // 向かい合わせなので左右反転
+    return o;
+  }));
+  applyAns();
+}
+function applyAns(){
+  for (const c of G.cards){
+    const a = G.ans[c.no];
+    if (G.phase==="recall"){ c.open = !!a; c.correct = a ? a.ok : null; c.answer = a ? a.a : null; }
+    else if (G.phase==="result"){ c.open = true; c.correct = a ? a.ok : false; c.answer = a ? a.a : null; }
+    else { c.open = true; c.correct = null; }
+  }
+}
+function battlePhase(){
+  const r = G.room;
+  if (!r || r.status==="closed") return "closed";
+  if (G.finished) return "result";
+  if (r.status==="lobby") return "lobby";
+  const now = serverNow();
+  if (now < r.memStartMs) return "countdown";
+  if (now < r.memEndMs) return "memorize";
+  return "recall";
+}
+function battleTick(force){
+  if (!G || G.mode!=="battle") return;
+  const p = battlePhase();
+  if (p!==G.phase || force){
+    const prev = G.phase; G.phase = p;
+    if (p==="recall" && prev!=="recall"){ G.sel = null; if (prev==="memorize") beep(); }
+    if (p==="memorize" && prev==="countdown") beep();
+    if (p==="closed" && prev!=="closed"){ toast("部屋が閉じられました"); }
+    applyAns(); renderBattleGame();
+  }
+  const r = G.room, now = serverNow(), T = $("#timer");
+  let txt = "", low = false;
+  if (p==="lobby") txt = fmtTime(r.memSec);
+  else if (p==="countdown") txt = "開始まで " + Math.max(1, Math.ceil((r.memStartMs-now)/1000));
+  else if (p==="memorize"){ const s=(r.memEndMs-now)/1000; txt = fmtTime(Math.ceil(s)); low = s<=60; }
+  else if (p==="recall"){
+    const s = (r.memEndMs + r.ansSec*1000 - now)/1000;
+    txt = G.myDone ? "解答終了" : fmtTime(Math.ceil(s)); low = !G.myDone && s<=60;
+    if (s <= 0 && !G.timeUp){ G.timeUp = true; if ($("#answerDlg").open){ pending=null; $("#answerDlg").close(); } beep(); renderBattleGame(); }
+    checkFinish();
+  }
+  T.textContent = txt; T.classList.toggle("low", low);
+}
+function renderBattleGame(){
+  if (!G || G.mode!=="battle") return;
+  const P = G.phase, r = G.room || {};
+  $("#phaseLabel").textContent = {lobby:"対戦の準備", countdown:"まもなく開始", memorize:"暗記中（対戦）", recall:"解答中（対戦）", result:"対戦結果", closed:"部屋は閉じられました"}[P];
+  const opp = G.oppUid ? G.oppName : null;
+  $("#gameHint").innerHTML = {
+    lobby: (G.isHost ? `部屋コード <span class="roomcode">${esc(G.code)}</span> を相手に伝えてください。` : `部屋 ${esc(G.code)} に参加しました。`) +
+           `　暗記 ${fmtTime(r.memSec)}／解答の制限時間 ${fmtTime(r.ansSec)}。` +
+           (opp ? `<b>${esc(opp)}</b> が参加しています。` : "相手の参加を待っています…") +
+           `<br>自陣の札はこの間も動かせます（相手の画面にも反映されます）。` + (G.isHost ? "" : "ホストが開始するのを待っています。"),
+    countdown: "まもなく暗記が始まります。",
+    memorize: `暗記中も自陣の札は動かせます。相手：<b>${esc(opp||"相手")}</b>`,
+    recall: G.timeUp ? "制限時間になりました。結果を集計しています…" : G.myDone ? "全ての札に解答しました。相手の終了を待っています…" : "開けたい札をタップして、上の句（決まり字以上）を入力します。全50枚に解答すると終了です。",
+    result: "", closed: "ホストが部屋を閉じました。「対戦」タブから新しく部屋を作るか参加してください。"
+  }[P];
+  renderBattleButtons();
+  applyAns(); renderBoard(); battleScore();
+}
+function renderBattleButtons(){
+  const P = G.phase, btns = $("#gameBtns"); btns.innerHTML = "";
+  const mk = (t,cls,fn,dis) => { const b=document.createElement("button"); b.textContent=t; if(cls) b.className=cls; b.onclick=fn; b.disabled=!!dis; btns.appendChild(b); return b; };
+  if (P==="lobby"){
+    if (G.isHost) mk("対戦開始","primary",startBattle, !(G.oppUid && G.opp && G.opp.layout));
+    mk("退出","",()=>show("battle"));
+  } else if (P==="memorize"){
+    const oppVote = G.opp && G.opp.endVote;
+    mk(G.myVote ? "終了に同意済み（相手待ち）" : (oppVote ? "相手が終了を希望：同意して裏返す" : "早めに終えることを提案"), G.myVote?"":"primary", voteEnd, G.myVote);
+  } else if (P==="result" || P==="closed"){
+    mk("対戦メニューへ","primary",()=>show("battle"));
+    if (P==="result" && G.oppUid) mk("同じ相手にもう一度申し込む","",()=>{ const u=G.oppUid, st={memSec:G.room.memSec, ansSec:G.room.ansSec}; leaveBattle(); createRoom(u, st); });
+  }
+}
+function battleScore(){
+  const el = $("#scoreLabel");
+  if (!G || !["recall","result"].includes(G.phase)){ el.textContent = ""; return; }
+  const mine = G.cards.filter(c=>c.side==="me"), theirs = G.cards.filter(c=>c.side==="opp");
+  const ok = cs => cs.filter(c=>G.ans[c.no] && G.ans[c.no].ok).length;
+  const answered = Object.keys(G.ans).length;
+  el.innerHTML = `自陣 <b>${ok(mine)}</b>　相手陣 <b>${ok(theirs)}</b>　（解答 ${answered}/50）　<span class="hint">${esc(G.oppName)}：解答 ${G.opp ? (G.opp.answered||0) : 0}/50${G.opp && G.opp.done ? "（終了）" : ""}</span>`;
+}
+async function startBattle(){
+  const now = serverNow(), r = G.room;
+  const start = now + 3000;
+  await fb.fs.updateDoc(fb.fs.doc(fb.db,"rooms",G.code), {status:"memorize", memStartMs:start, memEndMs:start + r.memSec*1000});
+}
+async function voteEnd(){
+  G.myVote = true; renderBattleButtons();
+  await fb.fs.setDoc(fb.fs.doc(fb.db,"rooms",G.code,"players",user.uid), {endVote:true}, {merge:true});
+  maybeEarlyEnd();
+}
+function maybeEarlyEnd(){
+  if (!G || !G.isHost || G.phase!=="memorize" || !G.myVote || !(G.opp && G.opp.endVote)) return;
+  const end = serverNow() + 2000;
+  if (G.room.memEndMs > end) fb.fs.updateDoc(fb.fs.doc(fb.db,"rooms",G.code), {memEndMs:end}).catch(console.error);
+}
+async function battleAnswered(card){
+  G.ans[card.no] = {ok: !!card.correct, a: card.answer || ""};
+  const answered = Object.keys(G.ans).length;
+  const correct = Object.values(G.ans).filter(a=>a.ok).length;
+  const upd = {answers: {[card.no]: G.ans[card.no]}, answered, correct};
+  if (answered >= 50){
+    G.myDone = true; G.myFinishMs = Math.max(0, serverNow() - G.room.memEndMs);
+    upd.done = true; upd.finishMs = G.myFinishMs;
+  }
+  renderBattleGame();
+  try { await fb.fs.setDoc(fb.fs.doc(fb.db,"rooms",G.code,"players",user.uid), upd, {merge:true}); }
+  catch(e){ console.error(e); toast("解答の送信に失敗しました"); }
+  checkFinish();
+}
+function sideStats(ans, ownNos, done, finishMs){
+  let correct=0, own=0, other=0;
+  for (const [no,a] of Object.entries(ans||{})) if (a && a.ok){ correct++; if (ownNos.has(+no)) own++; else other++; }
+  return {correct, own, other, done:!!done, finishMs: done ? finishMs : null};
+}
+// 勝敗：①正解数 ②両者終了ならタイム ③相手陣の正解数 ④終了した方 → それでも同じなら引き分け
+function decide(A, B){
+  if (A.correct!==B.correct) return A.correct>B.correct ? 1 : -1;
+  if (A.done && B.done && A.finishMs!==B.finishMs) return A.finishMs<B.finishMs ? 1 : -1;
+  if (A.other!==B.other) return A.other>B.other ? 1 : -1;
+  if (A.done!==B.done) return A.done ? 1 : -1;
+  return 0;
+}
+function checkFinish(){
+  if (!G || G.finished || !G.room || G.phase!=="recall") return;
+  const deadline = G.room.memEndMs + G.room.ansSec*1000;
+  const bothDone = G.myDone && G.opp && G.opp.done;
+  if (bothDone || serverNow() > deadline + 2500) finalizeBattle();
+}
+async function finalizeBattle(){
+  G.finished = true; G.phase = "result";
+  const myNos = new Set(G.cards.filter(c=>c.side==="me").map(c=>c.no));
+  const oppNos = new Set(G.cards.filter(c=>c.side==="opp").map(c=>c.no));
+  const A = sideStats(G.ans, myNos, G.myDone, G.myFinishMs);
+  const B = G.opp ? sideStats(G.opp.answers, oppNos, G.opp.done, G.opp.finishMs) : {correct:0,own:0,other:0,done:false,finishMs:null};
+  const res = decide(A, B);
+  let reason = "";
+  if (A.correct!==B.correct) reason = "正解数の差";
+  else if (A.done && B.done && A.finishMs!==B.finishMs) reason = "正解数が同じため、解答終了までのタイムで判定";
+  else if (A.other!==B.other) reason = "正解数が同じため、相手陣の正解数で判定";
+  else if (A.done!==B.done) reason = "正解数・相手陣の正解数が同じため、時間内に解答を終えた方の勝ち";
+  renderBattleGame();
+  const tm = s => s.done ? fmtTime(s.finishMs/1000) : "時間切れ";
+  const rp = $("#resultPanel"); rp.classList.remove("hidden");
+  rp.innerHTML = `<div class="verdict ${res>0?"win":res<0?"lose":""}">${res>0?"勝ち":res<0?"負け":"引き分け"}</div>
+    <p class="hint">${reason}</p>
+    <table><tr><th></th><th class="num">正解数</th><th class="num">自陣</th><th class="num">相手陣</th><th class="num">解答タイム</th></tr>
+    <tr><td><b>あなた</b></td><td class="num">${A.correct}/50</td><td class="num">${A.own}/25</td><td class="num">${A.other}/25</td><td class="num">${tm(A)}</td></tr>
+    <tr><td><b>${esc(G.oppName)}</b></td><td class="num">${B.correct}/50</td><td class="num">${B.own}/25</td><td class="num">${B.other}/25</td><td class="num">${tm(B)}</td></tr></table>
+    <p class="hint" id="saveState">保存中…</p>${missList()}`;
+  if (G.saved) return; G.saved = true;
+  const {doc,collection,addDoc,getDocs,runTransaction,updateDoc} = fb.fs;
+  try {
+    await addDoc(collection(fb.db,"users",user.uid,"battles"), {createdAt:Date.now(), oppUid:G.oppUid, code:G.code,
+      memSec:G.room.memSec, ansSec:G.room.ansSec, result:res, me:A, opp:B});
+    if (G.oppUid){
+      const fs = await getDocs(collection(fb.db,"users",user.uid,"friends"));
+      const maxNum = Math.max(0, ...fs.docs.map(d=>d.data().num||0));
+      const ref = doc(fb.db,"users",user.uid,"friends",G.oppUid);
+      await runTransaction(fb.db, async tx => {
+        const s = await tx.get(ref);
+        const d = s.exists() ? s.data() : {num:maxNum+1, since:Date.now(), wins:0, losses:0, draws:0};
+        d.lastPlayed = Date.now(); d[res>0?"wins":res<0?"losses":"draws"] = (d[res>0?"wins":res<0?"losses":"draws"]||0) + 1;
+        tx.set(ref, d);
+      });
+    }
+    if (G.isHost) updateDoc(doc(fb.db,"rooms",G.code), {status:"done"}).catch(()=>{});
+    const st = $("#saveState"); if (st) st.textContent = "対戦の記録を保存しました";
+  } catch(e){ console.error(e); const st=$("#saveState"); if (st) st.textContent = "記録の保存に失敗しました：" + e.message; }
 }
 
 /* ---------- 起動 ---------- */
