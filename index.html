@@ -139,10 +139,6 @@ td.num,th.num{text-align:right}
 .toggle.on{background:var(--sel);border-color:var(--sel);color:#fff;font-weight:700}
 .kmov{position:absolute;left:0;right:0;top:34%;text-align:center;color:#d0021b;font-weight:800;font-size:max(11px,calc(var(--cw)*0.26));line-height:1.15;background:rgba(255,255,255,.85);padding:2px 0;z-index:3;pointer-events:none;word-break:break-all;font-family:-apple-system,"Hiragino Sans",sans-serif}
 .card.opp .kmov{transform:rotate(180deg)}
-.scorebar{position:absolute;left:0;right:0;bottom:0;height:48%;display:flex;z-index:4}
-.scorebar button{flex:1;padding:0;border-radius:0;font-size:max(14px,calc(var(--cw)*0.36));font-weight:800;border:none;background:rgba(255,255,255,.92)}
-.scorebar button.o{color:var(--ok)} .scorebar button.x{color:var(--danger);border-left:1px solid var(--line)}
-.card.opp .scorebar{transform:rotate(180deg);top:0;bottom:auto}
 .roomcode{font-size:26px;font-weight:800;letter-spacing:.15em;font-variant-numeric:tabular-nums;padding:2px 12px;border:2px dashed var(--accent);border-radius:10px}
 .nav-badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;line-height:18px;text-align:center}
 .friend{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -778,7 +774,7 @@ function deal(useFixed){
   const oppCards = fillRandom(opp, new Set(), [0,0,0]).map(x => ({...x, _t:Math.random()}));
   packSide(oppCards);
   for (const x of oppCards) cards.push({no:x.no, row:x.row, col:x.col, side:"opp"});
-  for (const c of cards){ c.open = true; c.answer = null; c.correct = null; c.flip = false; c.km = false; c.self = null; }
+  for (const c of cards){ c.open = true; c.answer = null; c.correct = null; c.flip = false; c.km = false; }
   return cards;
 }
 
@@ -792,7 +788,7 @@ function stopTimer(){ if (timerId){ clearInterval(timerId); timerId=null; } }
 $("#btnDeal").onclick = () => {
   const setSec = Math.min(900, Math.max(10, (+$("#tMin").value||0)*60 + (+$("#tSec").value||0)));
   $("#tMin").value = Math.floor(setSec/60); $("#tSec").value = setSec%60;
-  G = { mode, setSec, cards: deal($("#useFixed").checked), phase:"arrange", sel:null, tapMode:"move", selfScore:false, scoring:null };
+  G = { mode, setSec, cards: deal($("#useFixed").checked), phase:"arrange", sel:null, tapMode:"move" };
   $("#resultPanel").classList.add("hidden");
   show("game"); renderGame();
 };
@@ -805,9 +801,7 @@ function renderGame(){
   const hint = {
     arrange: tapHint || "自陣の札をタップ → 移動先のマス（または別の札）をタップで移動・入れ替え。準備ができたら「暗記開始」。",
     memorize: tapHint || "暗記中も自陣の札は動かせます。早めに終えるときは「終了して裏返す」。",
-    recall: G.mode==="record" ? "開けたい札をタップして、上の句（決まり字以上）を入力します。"
-          : G.selfScore ? "開けたい札をタップ → 思い出してから表を確認し、○か×を付けます（開けた札をタップすると付け直せます）。"
-          : "開けたい札をタップして、思い出してから確認します。",
+    recall: G.mode==="record" ? "開けたい札をタップして、上の句（決まり字以上）を入力します。" : "開けたい札をタップして、思い出してから確認します。",
     result:""
   }[P];
   $("#gameHint").textContent = hint;
@@ -825,8 +819,6 @@ function renderGame(){
   } else if (P==="recall"){
     if (G.mode==="practice"){
       mk("全て開ける","",()=>{ G.cards.forEach(c=>c.open=true); renderBoard(); updateScore(); });
-      const sb = mk("自己採点", "toggle"+(G.selfScore?" on":""), () => { G.selfScore = !G.selfScore; G.scoring = null; renderGame(); });
-      sb.setAttribute("aria-pressed", !!G.selfScore);
       mk("終わる","primary",finishPractice);
     } else {
       mk("終了して記録","primary",finishRecord);
@@ -873,17 +865,12 @@ function stopRecallClock(){
 }
 function finishPractice(){
   stopRecallClock();
-  G.phase = "result"; G.scoring = null;
+  G.phase = "result";
   renderGame();
-  const side = s => G.cards.filter(c=>c.side===s);
-  const sc = cs => [cs.filter(c=>c.self===true).length, cs.filter(c=>c.self!==null && c.self!==undefined).length];
-  const [mo, mt] = sc(side("me")), [oo, ot] = sc(side("opp"));
   const rp = $("#resultPanel"); rp.classList.remove("hidden");
   rp.innerHTML = `<div class="row" style="gap:28px">
     <div><div class="hint">暗記時間</div><div class="big">${fmtTime(G.usedSec)}</div></div>
-    <div><div class="hint">答え合わせの時間</div><div class="big">${fmtTime(G.recallSec||0)}</div></div>
-    ${mt+ot ? `<div><div class="hint">自己採点：自陣</div><div class="big">${mo}/${mt}</div></div>
-    <div><div class="hint">自己採点：相手陣</div><div class="big">${oo}/${ot}</div></div>` : ""}</div>
+    <div><div class="hint">答え合わせの時間</div><div class="big">${fmtTime(G.recallSec||0)}</div></div></div>
     <p class="hint">練習モードの結果は保存されません。</p>`;
 }
 function beep(){
@@ -896,12 +883,7 @@ function updateScore(){
   const el = $("#scoreLabel");
   if (G.phase==="arrange" || G.phase==="memorize"){ el.textContent=""; return; }
   const opened = G.cards.filter(c=>c.open).length;
-  if (G.mode==="practice"){
-    const sc = side => { const cs=G.cards.filter(c=>c.side===side); return [cs.filter(c=>c.self===true).length, cs.filter(c=>c.self===true||c.self===false).length]; };
-    const [mo,mt]=sc("me"), [oo,ot]=sc("opp");
-    el.innerHTML = `開けた札 <b>${opened}</b> / 50` + (mt+ot ? `　自己採点　自陣 <b>○${mo}</b>/${mt}　相手陣 <b>○${oo}</b>/${ot}` : "");
-    return;
-  }
+  if (G.mode==="practice"){ el.innerHTML = `開けた札 <b>${opened}</b> / 50`; return; }
   const s = side => { const cs=G.cards.filter(c=>c.side===side); return [cs.filter(c=>c.correct).length, cs.filter(c=>c.open).length]; };
   const [mc,mo]=s("me"), [oc,oo]=s("opp");
   el.innerHTML = `自陣 <b>${mc}</b>/${mo}　相手陣 <b>${oc}</b>/${oo}　（開けた札 ${opened}/50）`;
@@ -923,16 +905,6 @@ function cardEl(c, faceUp){
       b.textContent = CARD[c.no].km;
       d.appendChild(b);
       d.title = `${c.no} ${CARD[c.no].km}` + (c.correct ? "" : `（入力：${c.answer||"なし"}）`);
-    }
-    if (G && G.mode==="practice" && (c.self===true || c.self===false)){
-      d.classList.add(c.self?"ok":"ng");
-      const b=document.createElement("div"); b.className="badge"; b.textContent = (c.self?"○ ":"× ") + CARD[c.no].km; d.appendChild(b);
-    }
-    if (G && G.scoring===c){
-      const bar=document.createElement("div"); bar.className="scorebar";
-      const mkb=(t,cls,v)=>{ const x=document.createElement("button"); x.className=cls; x.textContent=t; x.onclick=e=>{ e.stopPropagation(); setSelfScore(c,v); }; bar.appendChild(x); };
-      mkb("○","o",true); mkb("×","x",false);
-      d.appendChild(bar);
     }
   } else { const b=document.createElement("div"); b.className="back"; d.appendChild(b); }
   if (c.km && G && ["arrange","memorize"].includes(G.phase)){
@@ -965,7 +937,6 @@ function renderBoard(){
         const el = cardEl(card, faceUp);
         if (G.sel===card) el.classList.add("sel");
         if (G.phase==="recall" && !card.open) el.onclick = e => { e.stopPropagation(); openCard(card); };
-        else if (G.phase==="recall" && G.mode==="practice" && G.selfScore && G.scoring!==card) el.onclick = e => { e.stopPropagation(); G.scoring = card; renderBoard(); };
         if (study && G.tapMode==="flip") el.onclick = e => { e.stopPropagation(); card.flip = !card.flip; renderBoard(); };
         if (study && G.tapMode==="kimari") el.onclick = e => { e.stopPropagation(); card.km = !card.km; renderBoard(); };
         cell.appendChild(el);
@@ -994,11 +965,7 @@ function onMyCell(r,c){
 let pending = null;
 function openCard(card){
   if (G.mode==="battle" && (G.myDone || G.timeUp || G.phase!=="recall")) return;
-  if (G.mode==="practice"){
-    card.open = true;
-    if (G.selfScore) G.scoring = card;
-    renderBoard(); updateScore(); maybeAllOpen(); return;
-  }
+  if (G.mode==="practice"){ card.open = true; renderBoard(); updateScore(); maybeAllOpen(); return; }
   pending = card;
   $("#dlgTitle").textContent = `${card.side==="me"?"自陣":"相手陣"} ${ROW_NAME[card.row]} の札は？`;
   $("#answerInput").value = "";
@@ -1021,12 +988,8 @@ function maybeAllOpen(){
   if (G.mode==="battle") return;
   if (G.cards.every(c=>c.open)){
     if (G.mode==="record") finishRecord(true);
-    else if (!G.selfScore || G.cards.every(c=>c.self===true || c.self===false)) finishPractice();
+    else finishPractice();
   }
-}
-function setSelfScore(card, v){
-  card.self = v; G.scoring = null;
-  renderBoard(); updateScore(); maybeAllOpen();
 }
 
 async function finishRecord(auto){
