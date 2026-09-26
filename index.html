@@ -205,7 +205,7 @@ td.num,th.num{text-align:right}
     <h3 style="margin-top:0">使い方</h3>
     <ol class="hint" style="margin:0;padding-left:20px">
       <li>100枚からランダムに50枚、自陣25枚・相手陣25枚が配られます。</li>
-      <li>自陣は定位置どおりに並びます。札をタップ → 移動先をタップで入れ替え・移動できます。</li>
+      <li>自陣は定位置の段・左右・並び順を守って、端から詰めて並びます。札をタップ → 移動先をタップで入れ替え・移動できます。</li>
       <li>「暗記開始」でタイマースタート。途中で「終了して裏返す」も可能です。</li>
       <li>全ての札が裏返ったら、好きな札をタップして開けていきます。</li>
       <li>記録モードでは、上の句をひらがなで入力（決まり字まで合っていれば正解）。歌番号でも可。</li>
@@ -232,7 +232,7 @@ td.num,th.num{text-align:right}
 <section id="view-positions" class="hidden">
   <div class="panel">
     <h2>定位置の登録</h2>
-    <p class="hint">左の一覧で札を選び、右の自陣のマスをタップして登録します。同じマスに複数の札を登録できます（配られたときに重なった札は近くの空きマスに入ります）。マス内の札名をタップすると選択できます。</p>
+    <p class="hint">左の一覧で札を選び、右の自陣のマスをタップして登録します。配られたときは、登録した段と左右・並び順を保ったまま端から詰めて並びます（同じマスに複数の札を登録してもOK）。マス内の札名をタップすると選択できます。</p>
     <div class="pos-layout">
       <div>
         <input id="posSearch" placeholder="決まり字・番号で検索" style="width:100%;margin-bottom:8px">
@@ -623,22 +623,43 @@ function nearestFree(occ, row, col){
   }
   return null;
 }
+// 自陣の各段を、左半分は左端から・右半分は右端から隙間なく詰める（並び順は保つ）
+function packSide(cards){
+  for (let pass=0; pass<3; pass++){
+    let moved = false;
+    for (let r=0; r<ROWS; r++){
+      const row = cards.filter(c=>c.row===r);
+      const L = row.filter(c=>c.col<COLS/2).sort((a,b)=>a.col-b.col || a._t-b._t);
+      const R = row.filter(c=>c.col>=COLS/2).sort((a,b)=>b.col-a.col || a._t-b._t);
+      // 1段に16枚を超えるときは、多い側の内側の札を枚数の少ない段へ移す
+      while (L.length + R.length > COLS){
+        const g = L.length >= R.length ? L : R, x = g.pop();
+        const cnt = [0,1,2].map(i => i===r ? Infinity : cards.filter(c=>c.row===i).length);
+        x.row = cnt.indexOf(Math.min(...cnt)); moved = true;
+      }
+      L.forEach((c,i)=>c.col=i);
+      R.forEach((c,i)=>c.col=COLS-1-i);
+    }
+    if (!moved) break;
+  }
+  return cards;
+}
 function deal(useFixed){
   const all = shuffle(POEMS.map(p=>p[0]));
   const mine = all.slice(0,PER_SIDE), opp = all.slice(PER_SIDE, PER_SIDE*2);
-  const cards = [];
-  // 自陣
-  const occ = new Set(), counts=[0,0,0], rest=[];
-  for (const no of shuffle([...mine])){
+  // 自陣：定位置の札は登録した段・左右・順番を使い、端から詰めて並べる
+  const my = [], occ = new Set(), counts=[0,0,0], rest=[];
+  for (const no of mine){
     const p = useFixed && positions[no];
     if (p){
-      let [r,c] = p.split("-").map(Number);
-      if (occ.has(`${r}-${c}`)) [r,c] = nearestFree(occ,r,c);
+      const [r,c] = p.split("-").map(Number);
       occ.add(`${r}-${c}`); counts[r]++;
-      cards.push({no, side:"me", row:r, col:c});
+      my.push({no, row:r, col:c, _t:Math.random()});
     } else rest.push(no);
   }
-  for (const x of fillRandom(rest, occ, counts)) cards.push({...x, side:"me"});
+  for (const x of fillRandom(rest, occ, counts)) my.push({...x, _t:Math.random()});
+  packSide(my);
+  const cards = my.map(({no,row,col}) => ({no, side:"me", row, col}));
   // 相手陣（完全ランダム）
   for (const x of fillRandom(opp, new Set(), [0,0,0])) cards.push({...x, side:"opp"});
   for (const c of cards){ c.open = true; c.answer = null; c.correct = null; }
