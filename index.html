@@ -681,11 +681,17 @@ const Store = {
     const snap = await getDoc(doc(fb.db,"users",user.uid));
     return (snap.exists() && snap.data().positions) || {};
   },
-  async loadBadges(){
-    if (user.guest) return JSON.parse(localStorage.getItem("ka_badges")||"{}");
+  async loadBadges(){   // {badges, retro}（retro＝さかのぼり付与をすませた版）
+    if (user.guest) return {badges: JSON.parse(localStorage.getItem("ka_badges")||"{}"), retro: +(localStorage.getItem("ka_badgeRetro")||0)};
     const {doc,getDoc} = fb.fs;
     const snap = await getDoc(doc(fb.db,"users",user.uid));
-    return (snap.exists() && snap.data().badges) || {};
+    const d = snap.exists() ? snap.data() : {};
+    return {badges: d.badges || {}, retro: d.badgeRetro || 0};
+  },
+  async setBadgeRetro(v){
+    if (user.guest) { localStorage.setItem("ka_badgeRetro", String(v)); return; }
+    const {doc,setDoc} = fb.fs;
+    await setDoc(doc(fb.db,"users",user.uid), {badgeRetro: v}, {merge:true});
   },
   async saveBadge(no, entry){
     if (user.guest) { const b = JSON.parse(localStorage.getItem("ka_badges")||"{}"); b[no] = entry; localStorage.setItem("ka_badges", JSON.stringify(b)); return; }
@@ -777,9 +783,11 @@ async function onLogin(){
   updateUserName();
   if (!user.guest) initOnline().catch(e=>console.error(e));
   try { positions = await Store.loadPositions(); } catch(e){ console.error(e); positions = {}; toast("定位置の読み込みに失敗しました"); }
-  try { badges = await Store.loadBadges(); } catch(e){ console.error(e); badges = {}; }
+  let retroDone = 1;
+  try { const st = await Store.loadBadges(); badges = st.badges; retroDone = st.retro; } catch(e){ console.error(e); badges = {}; }
   updateBadgeNav();
   show("home");
+  if (retroDone < BADGE_RETRO_VERSION) retroBadges().catch(e => console.error(e));
 }
 
 /* ---------- ログイン ---------- */
@@ -1176,7 +1184,7 @@ async function finishRecord(auto){
   const me = side("me"), op = side("opp");
   const rec = {
     createdAt: Date.now(),
-    setSec: G.setSec, memorizeSec: G.usedSec, answerSec: G.recallSec || 0,
+    setSec: G.setSec, memorizeSec: G.usedSec, answerSec: G.recallSec || 0, badgeChecked: true,
     selfCorrect: me.filter(c=>c.correct).length, selfTotal: me.length,
     oppCorrect: op.filter(c=>c.correct).length, oppTotal: op.length,
     selfRate: pct(me.filter(c=>c.correct).length, me.length),
@@ -1875,7 +1883,7 @@ function decideBattleBadge(res, A, B){
   if (memSec < 600 && A.correct >= 48) return {kind:"new", why:"暗記10分未満・48点以上で勝利"};
   return {kind:"random", why:"対戦で勝利"};
 }
-async function awardBadge({kind, why}){
+async function awardBadge({kind, why}, opts={}){
   const all = POEMS.map(p=>p[0]);
   let pool = kind==="new" ? all.filter(n=>!badges[n]) : all;
   if (!pool.length) pool = all;                      // 全部そろっている場合はランダム
@@ -1884,12 +1892,13 @@ async function awardBadge({kind, why}){
   const entry = isNew ? {at: Date.now(), count: 1} : {...badges[no], count: (badges[no].count||1) + 1};
   badges[no] = entry;
   updateBadgeNav();
-  showBadgeFx(no, isNew, why, entry.count);
+  if (!opts.quiet) showBadgeFx(no, isNew, why, entry.count);
   const rp = $("#resultPanel");
-  if (rp){ const m = document.createElement("div"); m.className = "badge-mini";
+  if (rp && !opts.quiet){ const m = document.createElement("div"); m.className = "badge-mini";
     m.innerHTML = `🏅 <span><b>バッジ獲得：「${esc(CARD[no].km)}」</b>（${no}番）${isNew ? "　<b style=\"color:var(--danger)\">NEW</b>" : `　${entry.count}枚目`}<br><span class="hint">${esc(why)}</span></span>`;
     rp.appendChild(m); }
   try { await Store.saveBadge(no, entry); } catch(e){ console.error(e); toast("バッジの保存に失敗しました"); }
+  return {no, isNew, count: entry.count, why};
 }
 function medalEl(no, owned, size){
   const m = document.createElement("div"); m.className = "medal" + (owned ? "" : " locked");
@@ -1933,10 +1942,54 @@ function showBadgeFx(no, isNew, why, count){
   const sub = document.createElement("div"); sub.className = "sub";
   sub.textContent = `${why}　／　${isNew ? `コレクション ${ownedCount()}/100` : `${count}枚目（もう持っているバッジ）`}　—　タップで閉じる`;
   fx.appendChild(t); fx.appendChild(sub);
-  fx.onclick = () => fx.remove();
-  document.addEventListener("keydown", function esc1(e){ if (e.key==="Escape"){ fx.remove(); document.removeEventListener("keydown", esc1); } });
   document.body.appendChild(fx);
   beep();
+  return new Promise(resolve => {
+    const close = () => { fx.remove(); document.removeEventListener("keydown", onKey); resolve(); };
+    const onKey = e => { if (e.key==="Escape" || e.key==="Enter") close(); };
+    fx.onclick = close;
+    document.addEventListener("keydown", onKey);
+  });
+}
+/* ---------- さかのぼり付与 ----------
+   ・バッジ機能ができる前（BADGE_LAUNCH より前）の記録：今のルール・今の判定で条件を満たせば付与
+   ・できた後の記録：保存したときにすでにバッジが出ていたもの（当時の点数・当時のルールで条件を満たしていたもの）は除き、
+     判定の更新で新たに条件を満たすようになったものだけ付与
+   ・対戦は対象外。1人1回だけ実行（BADGE_RETRO_VERSION を上げると、次の更新時にもう一度さかのぼれる） */
+const BADGE_RETRO_VERSION = 1;
+const BADGE_LAUNCH = Date.parse("2026-09-27T17:00:05Z");       // バッジ機能を公開した時刻
+const RANDOM48_UNTIL = Date.parse("2026-09-27T18:14:02Z");     // ランダム付与が48点以上だった期間の終わり
+function decideRecordBadgeAt(r, score, t){                      // 保存した当時のルールでの判定
+  const is15 = r.setSec >= 900, under10 = r.memorizeSec < 600;
+  if (is15 && score >= 50) return true;
+  if (under10 && score >= 48) return true;
+  if (is15 && score >= (t < RANDOM48_UNTIL ? 48 : 46)) return true;
+  return false;
+}
+async function retroBadges(){
+  const list = await Store.listRecords();
+  list.sort((a,b)=>a.createdAt-b.createdAt);
+  const grants = [];
+  for (const r of list){
+    if (!Array.isArray(r.cards) || !r.cards.length || r.badgeChecked) continue;
+    const oldScore = (r.selfCorrect||0) + (r.oppCorrect||0);      // 保存したときの点数
+    rescoreSaved(r);                                               // 今の判定で採点し直す
+    const award = decideRecordBadge(r);
+    if (!award) continue;
+    if (r.createdAt >= BADGE_LAUNCH && decideRecordBadgeAt(r, oldScore, r.createdAt)) continue;   // 当時すでにもらっている
+    const d = new Date(r.createdAt);
+    grants.push({award, label: `${d.getMonth()+1}/${d.getDate()}の記録`});
+  }
+  const results = [];
+  for (const g of grants) results.push(await awardBadge(g.award, {quiet:true}));
+  await Store.setBadgeRetro(BADGE_RETRO_VERSION);
+  if (!results.length) return;
+  toast(`過去の記録から、バッジを${results.length}個さかのぼって獲得しました`);
+  for (let i=0; i<results.length; i++){
+    const x = results[i];
+    await showBadgeFx(x.no, x.isNew, `さかのぼり獲得 ${i+1}/${results.length}（${grants[i].label}：${x.why}）`, x.count);
+  }
+  if (current==="badges") renderBadges();
 }
 function renderBadges(){
   const n = ownedCount();
