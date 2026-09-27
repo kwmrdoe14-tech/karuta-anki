@@ -136,6 +136,8 @@ td.num,th.num{text-align:right}
 .portrait-note{display:none;margin:0 0 8px}
 @media (max-width:600px) and (orientation:portrait){.portrait-note{display:block}}
 @media (max-width:600px){header.top{padding:6px 10px} header.top .brand{font-size:16px} main{padding:10px} .timer{font-size:28px;min-width:90px}}
+td.low{color:var(--danger);font-weight:700}
+#perCardTable th{position:sticky;top:0;background:var(--panel);cursor:default}
 .toggle.on{background:var(--sel);border-color:var(--sel);color:#fff;font-weight:700}
 .kmov{position:absolute;left:0;right:0;top:34%;text-align:center;color:#d0021b;font-weight:800;font-size:max(11px,calc(var(--cw)*0.26));line-height:1.15;background:rgba(255,255,255,.85);padding:2px 0;z-index:3;pointer-events:none;word-break:break-all;font-family:-apple-system,"Hiragino Sans",sans-serif}
 .card.opp .kmov{transform:rotate(180deg)}
@@ -341,6 +343,17 @@ td.num,th.num{text-align:right}
     <div class="chart-box" id="chartBox"></div>
   </div>
   <div class="panel">
+    <h3 style="margin-top:0">札ごとの成績</h3>
+    <div class="row" style="margin-bottom:8px">
+      <select id="pcSource"><option value="all">記録＋対戦</option><option value="record">記録モードだけ</option><option value="battle">対戦だけ</option></select>
+      <select id="pcRange"><option value="all">全期間</option><option value="count">過去N回</option><option value="period">過去N期間</option></select>
+      <select id="pcSort"><option value="rate">正答率が低い順</option><option value="no">歌番号順</option><option value="seen">出た回数が多い順</option><option value="miss">不正解が多い順</option></select>
+    </div>
+    <p class="hint" style="margin:0 0 8px">正答率＝正解した回数 ÷ 盤面に出た回数。「過去N回」「過去N期間」のNは、上の集計欄の数字を使います。1回の記録・対戦で、各札に「正解」か「不正解」のどちらか1つだけが付きます。不正解は「答え間違い（その札に違う答えを書いた）」「未回答」「別の札に書かれた（ほかの札にこの札の決まり字を書いた）」に分けて数えます（重なった場合はこの順で1つに数えます）。</p>
+    <div id="pcSummary" class="hint" style="margin-bottom:6px"></div>
+    <div style="overflow-x:auto;max-height:560px;overflow-y:auto"><table id="perCardTable"></table></div>
+  </div>
+  <div class="panel">
     <h3 style="margin-top:0">全ての記録</h3>
     <div style="overflow-x:auto"><table id="historyTable"></table></div>
   </div>
@@ -514,6 +527,44 @@ function norm(s){
   return [...s].map(c => hist[small[c]||c] || small[c] || c).join("");
 }
 const ALIASES = { 44:["おうこ","おおこ"] };  // あふことの：「おおえ」「おおけ」との友札として「おおこ」も可
+// 入力された答えがどの札を指すかを特定する（決まり字以上／歌番号）。特定できなければ null
+const NKAMI = {}, NKM = {};
+for (const [no,kami,,km] of POEMS){ NKAMI[no] = norm(kami); NKM[no] = norm(km); }
+function identify(input){
+  const raw = (input||"").trim();
+  if (!raw) return null;
+  const z = raw.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));
+  if (/^\d+$/.test(z)){ const n = parseInt(z,10); return n>=1 && n<=100 ? n : null; }
+  const n = norm(raw);
+  for (const [no] of POEMS){
+    if (n.length >= NKM[no].length && NKAMI[no].startsWith(n)) return no;
+    if ((ALIASES[no]||[]).some(a => n.startsWith(norm(a)))) return no;
+  }
+  return null;
+}
+// 盤面全体で採点する。1回の記録・対戦で、各札に「正解」か「不正解」のどちらか1つだけが付く。
+//   不正解の理由（優先順）： wrong＝その札に違う答えを書いた／blank＝未回答・わからない／confused＝別の札にこの札の決まり字を書かれた
+// board: [{no, side}]、answers: {札番号: 入力文字列}（未回答は含めない）
+function scoreBoard(board, answers){
+  const on = new Set(board.map(b=>b.no)), writtenElsewhere = {};
+  for (const b of board){
+    const a = answers[b.no];
+    if (a==null) continue;
+    const id = identify(a);
+    if (id!==null && id!==b.no && on.has(id)) writtenElsewhere[id] = true;
+  }
+  const res = {};
+  for (const b of board){
+    const a = answers[b.no];
+    let why = null;
+    if (a==null || !String(a).trim()) why = "blank";
+    else if (identify(a)!==b.no) why = "wrong";
+    else if (writtenElsewhere[b.no]) why = "confused";
+    res[b.no] = {ok: !why, why, side: b.side, answered: a!=null};
+  }
+  return res;
+}
+const WHY_LABEL = {wrong:"答え間違い", blank:"未回答", confused:"別の札に書かれた"};
 function judge(no, input){
   const raw = (input||"").trim();
   if (!raw) return false;
@@ -547,6 +598,12 @@ const Store = {
     const {collection,getDocs,query,orderBy} = fb.fs;
     const q = query(collection(fb.db,"users",user.uid,"records"), orderBy("createdAt","desc"));
     const snap = await getDocs(q);
+    return snap.docs.map(d => ({id:d.id, ...d.data()}));
+  },
+  async listBattles(){
+    if (user.guest) return [];
+    const {collection,getDocs,query,orderBy} = fb.fs;
+    const snap = await getDocs(query(collection(fb.db,"users",user.uid,"battles"), orderBy("createdAt","desc")));
     return snap.docs.map(d => ({id:d.id, ...d.data()}));
   },
   async addRecord(r){
@@ -974,9 +1031,10 @@ function openCard(card){
 }
 function submitAnswer(text){
   if (!pending) return;
-  pending.answer = text; pending.correct = judge(pending.no, text); pending.open = true;
+  pending.answer = text; pending.open = true;
   const answered = pending; pending = null; $("#answerDlg").close();
   if (G.mode==="battle"){ battleAnswered(answered); return; }
+  rescoreRecord();
   renderBoard(); updateScore(); maybeAllOpen();
 }
 $("#answerForm").onsubmit = e => { e.preventDefault(); submitAnswer($("#answerInput").value); };
@@ -992,10 +1050,21 @@ function maybeAllOpen(){
   }
 }
 
+// 記録モード：答えるたびに盤面全体を採点し直す（別の札に書いた決まり字の影響も反映）
+function rescoreRecord(final){
+  const answers = {};
+  for (const c of G.cards) if (c.open && c.answer!=null) answers[c.no] = c.answer;
+  const res = scoreBoard(G.cards, answers);
+  for (const c of G.cards){
+    if (c.open || final){ c.correct = res[c.no].ok; c.why = res[c.no].why; }
+  }
+  return res;
+}
 async function finishRecord(auto){
   const unopened = G.cards.filter(c=>!c.open).length;
   if (!auto && unopened && !confirm(`まだ開けていない札が${unopened}枚あります。不正解として記録しますか？`)) return;
   stopRecallClock();
+  rescoreRecord(true);
   const side = s => G.cards.filter(c=>c.side===s);
   const me = side("me"), op = side("opp");
   const rec = {
@@ -1005,10 +1074,10 @@ async function finishRecord(auto){
     oppCorrect: op.filter(c=>c.correct).length, oppTotal: op.length,
     selfRate: pct(me.filter(c=>c.correct).length, me.length),
     oppRate: pct(op.filter(c=>c.correct).length, op.length),
-    cards: G.cards.map(c=>({no:c.no, side:c.side, row:c.row, col:c.col, ok:!!c.correct, ans:c.answer||""}))
+    cards: G.cards.map(c=>({no:c.no, side:c.side, row:c.row, col:c.col, ok:!!c.correct, ans: c.open ? (c.answer||"") : null, why: c.why||null}))
   };
   G.phase = "result";
-  G.cards.forEach(c=>{ if(!c.open){ c.open=true; c.correct=false; } });
+  G.cards.forEach(c=>{ c.open = true; });
   renderGame();
   const rp = $("#resultPanel"); rp.classList.remove("hidden");
   rp.innerHTML = `<div class="row" style="gap:28px">
@@ -1025,7 +1094,7 @@ function missList(){
   const miss = G.cards.filter(c=>!c.correct);
   if (!miss.length) return `<p>全問正解です。</p>`;
   const row = side => miss.filter(c=>c.side===side).sort((a,b)=>a.row-b.row||a.col-b.col)
-    .map(c=>`<span style="white-space:nowrap">${esc(CARD[c.no].km)}<span class="hint">（${c.answer?esc(c.answer):"未回答"}）</span></span>`).join("　") || "なし";
+    .map(c=>`<span style="white-space:nowrap">${esc(CARD[c.no].km)}<span class="hint">（${c.why==="confused" ? `別の札に「${esc(CARD[c.no].km)}」と書いた` : c.answer ? esc(c.answer) : "未回答"}）</span></span>`).join("　") || "なし";
   return `<h3>まちがえた札</h3><p style="margin:4px 0"><b>自陣：</b>${row("me")}</p><p style="margin:4px 0"><b>相手陣：</b>${row("opp")}</p>`;
 }
 
@@ -1088,8 +1157,64 @@ async function renderStats(){
   $("#summaryTable").innerHTML = `<tr><td class="hint">読み込み中…</td></tr>`;
   try { records = await Store.listRecords(); } catch(e){ $("#summaryTable").innerHTML = `<tr><td>読み込みに失敗しました：${esc(e.message)}</td></tr>`; return; }
   records.sort((a,b)=>b.createdAt-a.createdAt);
-  drawSummary(); drawChart(); drawHistory();
+  records.forEach(rescoreSaved);
+  try { battles = await Store.listBattles(); } catch(e){ console.error(e); battles = []; }
+  battles.forEach(rescoreSaved);
+  drawSummary(); drawChart(); drawHistory(); drawPerCard();
 }
+let battles = [];
+// 保存済みの記録を、今の採点ルール（盤面全体で採点）で採点し直す。以前の記録にも同じ基準を当てる
+function rescoreSaved(r){
+  if (!Array.isArray(r.cards) || !r.cards.length) return;
+  const answers = {};
+  for (const c of r.cards) if (c.ans!=null && c.ans!=="") answers[c.no] = c.ans;
+  const res = scoreBoard(r.cards, answers);
+  r.scored = res;
+  if (r.selfTotal != null){   // 記録モードの暗記率も同じ基準で
+    const cnt = side => r.cards.filter(c=>c.side===side && res[c.no].ok).length;
+    r.selfCorrect = cnt("me"); r.oppCorrect = cnt("opp");
+    r.selfRate = pct(r.selfCorrect, r.selfTotal); r.oppRate = pct(r.oppCorrect, r.oppTotal);
+  }
+}
+// 札ごとの成績
+function drawPerCard(){
+  const src = $("#pcSource").value, range = $("#pcRange").value;
+  let games = [];
+  if (src!=="battle") games = games.concat(records.filter(r=>r.scored).map(r=>({t:r.createdAt, kind:"record", res:r.scored})));
+  if (src!=="record") games = games.concat(battles.filter(b=>b.scored).map(b=>({t:b.createdAt, kind:"battle", res:b.scored})));
+  games.sort((a,b)=>b.t-a.t);
+  const n = Math.max(1, +$("#nCount").value||1), pN = Math.max(1, +$("#nPeriod").value||1), u = $("#nUnit").value;
+  if (range==="count") games = games.slice(0, n);
+  if (range==="period") games = games.filter(g=>g.t >= periodStart(pN,u));
+  const S = {};
+  for (const [no] of POEMS) S[no] = {no, seen:0, ok:0, meSeen:0, meOk:0, opSeen:0, opOk:0, wrong:0, blank:0, confused:0};
+  for (const g of games) for (const [no,r] of Object.entries(g.res)){
+    const x = S[no]; x.seen++; if (r.ok) x.ok++; else x[r.why]++;
+    if (r.side==="me"){ x.meSeen++; if (r.ok) x.meOk++; } else { x.opSeen++; if (r.ok) x.opOk++; }
+  }
+  const unit = {day:"日",week:"週",month:"か月"}[u];
+  const legacy = (src!=="record" ? battles.filter(b=>!b.scored).length : 0);
+  $("#pcSummary").textContent = `対象：${games.length}回（${ {all:"記録＋対戦",record:"記録モード",battle:"対戦"}[src] }・${ {all:"全期間",count:`過去${n}回`,period:`過去${pN}${unit}`}[range] }）` +
+    (legacy ? `　※この機能より前の対戦 ${legacy}回は札ごとの記録がないため含まれません` : "");
+  const rate = (a,b) => b ? a/b : null;
+  const fmt = (a,b) => b ? `${Math.round(a/b*100)}%<span class="hint"> (${a}/${b})</span>` : `<span class="hint">—</span>`;
+  const low = (a,b) => b && a/b < 0.5 ? ' class="num low"' : ' class="num"';
+  let rows = Object.values(S);
+  const sort = $("#pcSort").value;
+  const seenFirst = (a,b) => (b.seen>0) - (a.seen>0);
+  if (sort==="rate") rows.sort((a,b)=> seenFirst(a,b) || (rate(a.ok,a.seen) - rate(b.ok,b.seen)) || b.seen-a.seen || a.no-b.no);
+  if (sort==="no") rows.sort((a,b)=> a.no-b.no);
+  if (sort==="seen") rows.sort((a,b)=> b.seen-a.seen || a.no-b.no);
+  if (sort==="miss") rows.sort((a,b)=> (b.seen-b.ok)-(a.seen-a.ok) || b.seen-a.seen || a.no-b.no);
+  const T = $("#perCardTable");
+  if (!games.length){ T.innerHTML = `<tr><td class="hint">記録モードか対戦で遊ぶと、ここに札ごとの成績が出ます。</td></tr>`; return; }
+  T.innerHTML = `<tr><th class="num">番号</th><th>決まり字</th><th class="num">出た回数</th><th class="num">正答率</th><th class="num">自陣</th><th class="num">相手陣</th>
+    <th class="num">答え間違い</th><th class="num">未回答</th><th class="num">別の札に書かれた</th></tr>` +
+    rows.map(x => `<tr><td class="num hint">${x.no}</td><td><b>${esc(CARD[x.no].km)}</b></td><td class="num">${x.seen||'<span class="hint">0</span>'}</td>
+      <td${low(x.ok,x.seen)}>${fmt(x.ok,x.seen)}</td><td${low(x.meOk,x.meSeen)}>${fmt(x.meOk,x.meSeen)}</td><td${low(x.opOk,x.opSeen)}>${fmt(x.opOk,x.opSeen)}</td>
+      <td class="num">${x.wrong||""}</td><td class="num">${x.blank||""}</td><td class="num">${x.confused||""}</td></tr>`).join("");
+}
+["#pcSource","#pcRange","#pcSort"].forEach(s => $(s).addEventListener("input", drawPerCard));
 function periodStart(n, unit){
   const d = new Date(); d.setHours(0,0,0,0);
   if (unit==="day") d.setDate(d.getDate()-(n-1));
@@ -1120,7 +1245,7 @@ function drawSummary(){
   }
   $("#summaryTable").innerHTML = h;
 }
-["#nCount","#nPeriod","#nUnit","#chartRange"].forEach(s => $(s).addEventListener("input", () => { drawSummary(); drawChart(); }));
+["#nCount","#nPeriod","#nUnit","#chartRange"].forEach(s => $(s).addEventListener("input", () => { drawSummary(); drawChart(); drawPerCard(); }));
 
 function drawChart(){
   const box = $("#chartBox");
@@ -1413,12 +1538,16 @@ function setOppLayout(layout){
   }));
   applyAns();
 }
+// 解答マップ {札番号: {a}} → scoreBoard 用の {札番号: 入力}
+const ansText = m => { const o = {}; for (const [k,v] of Object.entries(m||{})) if (v) o[+k] = v.a ?? ""; return o; };
+function battleBoard(){ return G.cards.map(c=>({no:c.no, side:c.side})); }
 function applyAns(){
+  const res = (G.phase==="recall" || G.phase==="result") ? scoreBoard(battleBoard(), ansText(G.ans)) : null;
   for (const c of G.cards){
-    const a = G.ans[c.no];
-    if (G.phase==="recall"){ c.open = !!a; c.correct = a ? a.ok : null; c.answer = a ? a.a : null; }
-    else if (G.phase==="result"){ c.open = true; c.correct = a ? a.ok : false; c.answer = a ? a.a : null; }
-    else { c.open = true; c.correct = null; }
+    const a = G.ans[c.no], r = res && res[c.no];
+    if (G.phase==="recall"){ c.open = !!a; c.correct = a ? r.ok : null; c.why = a ? r.why : null; c.answer = a ? a.a : null; }
+    else if (G.phase==="result"){ c.open = true; c.correct = r.ok; c.why = r.why; c.answer = a ? a.a : null; }
+    else { c.open = true; c.correct = null; c.why = null; }
   }
 }
 // 対戦中に札を動かせるのは、暗記時間の最初の1/3まで
@@ -1502,7 +1631,8 @@ function battleScore(){
   const el = $("#scoreLabel");
   if (!G || !["recall","result"].includes(G.phase)){ el.textContent = ""; return; }
   const mine = G.cards.filter(c=>c.side==="me"), theirs = G.cards.filter(c=>c.side==="opp");
-  const ok = cs => cs.filter(c=>G.ans[c.no] && G.ans[c.no].ok).length;
+  const res = scoreBoard(battleBoard(), ansText(G.ans));
+  const ok = cs => cs.filter(c=>res[c.no].ok).length;
   const answered = Object.keys(G.ans).length;
   el.innerHTML = `自陣 <b>${ok(mine)}</b>　相手陣 <b>${ok(theirs)}</b>　（解答 ${answered}/50）　<span class="hint">${esc(G.oppName)}：解答 ${G.opp ? (G.opp.answered||0) : 0}/50${G.opp && G.opp.done ? "（終了）" : ""}</span>`;
 }
@@ -1530,9 +1660,10 @@ function maybeEarlyEnd(){
   if (G.room.memEndMs > end) fb.fs.updateDoc(fb.fs.doc(fb.db,"rooms",G.code), {memEndMs:end}).catch(console.error);
 }
 async function battleAnswered(card){
-  G.ans[card.no] = {ok: !!card.correct, a: card.answer || ""};
+  G.ans[card.no] = {ok: judge(card.no, card.answer), a: card.answer || ""};
   const answered = Object.keys(G.ans).length;
-  const correct = Object.values(G.ans).filter(a=>a.ok).length;
+  const res = scoreBoard(battleBoard(), ansText(G.ans));
+  const correct = Object.values(res).filter(r=>r.ok).length;
   const upd = {answers: {[card.no]: G.ans[card.no]}, answered, correct};
   if (answered >= 50){
     G.myDone = true; G.myFinishMs = Math.max(0, serverNow() - G.room.memEndMs);
@@ -1543,9 +1674,11 @@ async function battleAnswered(card){
   catch(e){ console.error(e); toast("解答の送信に失敗しました"); }
   checkFinish();
 }
+// ans: {札番号: {a}}、ownNos: その人の自陣の札。盤面全体（50枚）で採点する
 function sideStats(ans, ownNos, done, finishMs, resigned){
+  const res = scoreBoard(G.cards.map(c=>({no:c.no, side: ownNos.has(c.no) ? "me" : "opp"})), ansText(ans));
   let correct=0, own=0, other=0;
-  for (const [no,a] of Object.entries(ans||{})) if (a && a.ok){ correct++; if (ownNos.has(+no)) own++; else other++; }
+  for (const [no,r] of Object.entries(res)) if (r.ok){ correct++; if (ownNos.has(+no)) own++; else other++; }
   return {correct, own, other, done:!!done, finishMs: done ? finishMs : null, resigned:!!resigned};
 }
 // 勝敗：①正解数 ②両者終了ならタイム ③相手陣の正解数 ④終了した方 → それでも同じなら引き分け
@@ -1589,7 +1722,8 @@ async function finalizeBattle(){
   const {doc,collection,addDoc,getDocs,runTransaction,updateDoc} = fb.fs;
   try {
     await addDoc(collection(fb.db,"users",user.uid,"battles"), {createdAt:Date.now(), oppUid:G.oppUid, code:G.code,
-      memSec:G.room.memSec, ansSec:G.room.ansSec, result:res, me:A, opp:B});
+      memSec:G.room.memSec, ansSec:G.room.ansSec, result:res, me:A, opp:B,
+      cards: G.cards.map(c=>({no:c.no, side:c.side, row:c.row, col:c.col, ok:!!c.correct, ans: G.ans[c.no] ? G.ans[c.no].a : null, why:c.why||null}))});
     if (G.oppUid){
       const fs = await getDocs(collection(fb.db,"users",user.uid,"friends"));
       const maxNum = Math.max(0, ...fs.docs.map(d=>d.data().num||0));
@@ -1614,7 +1748,7 @@ if (!FB_READY){
   show("login");
   initFirebase().catch(e => { console.error(e); $("#loginErr").textContent = "Firebaseの読み込みに失敗しました"; });
 }
-window.__test = { judge, norm, CARD, POEMS };
+window.__test = { judge, norm, CARD, POEMS, identify, scoreBoard };
 </script>
 </body>
 </html>
