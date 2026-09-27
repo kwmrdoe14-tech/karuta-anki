@@ -397,7 +397,7 @@ td.low{color:var(--danger);font-weight:700}
       <ul class="hint" style="margin:8px 0 0;padding-left:20px;line-height:1.8">
         <li>「記録」モード・暗記15分で満点（50点）：<b>まだ持っていない</b>バッジを1つ</li>
         <li>「記録」モード・暗記10分未満で48点以上：<b>まだ持っていない</b>バッジを1つ</li>
-        <li>「記録」モード・暗記15分で48点以上：100種類から<b>ランダム</b>で1つ（持っているものが出ることもあります）</li>
+        <li>「記録」モード・暗記15分で46点以上：100種類から<b>ランダム</b>で1つ（持っているものが出ることもあります）</li>
         <li>「対戦」で勝利：100種類から<b>ランダム</b>で1つ。満点で勝つか、暗記10分未満で48点以上で勝つと<b>まだ持っていない</b>バッジ</li>
         <li>1回の記録・対戦でもらえるのは1つまでです（いちばん良い条件が使われます）。相手の降参による勝ちではもらえません。</li>
         <li>「暗記15分」は暗記時間を15分に設定した回（早めに終えてもOK）、「10分未満」は実際に暗記に使った時間です。</li>
@@ -1864,7 +1864,7 @@ function decideRecordBadge(rec){
   const is15 = rec.setSec >= 900, under10 = rec.memorizeSec < 600;
   if (is15 && score >= 50) return {kind:"new",    why:"暗記15分で満点"};
   if (under10 && score >= 48) return {kind:"new",  why:"暗記10分未満で48点以上"};
-  if (is15 && score >= 48) return {kind:"random", why:"暗記15分で48点以上"};
+  if (is15 && score >= 46) return {kind:"random", why:"暗記15分で46点以上"};
   return null;
 }
 // 対戦の判定（勝ったときだけ。相手の降参による勝ちは対象外）
