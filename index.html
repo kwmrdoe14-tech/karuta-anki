@@ -609,29 +609,40 @@ function cardLines(no){
 }
 
 // 入力のゆれを吸収する正規化（歴史的仮名遣い・濁点・カタカナ・小書き）
-function norm(s){
+// 入力のゆれを吸収する正規化。歴史的仮名遣い・現代仮名遣いのどちらでも同じ形になるようにそろえる
+//   ・カタカナ→ひらがな、小書き→大きい字（ゃ→や 等）
+//   ・ぢ→じ、づ→ず、ゐ→い、ゑ→え、を→お（区別しない）
+//   ・2文字目以降の は/ひ/ふ/へ/ほ → わ/い/う/え/お（「あはぢ」＝「あわじ」、「おほえ」＝「おおえ」、「こひ」＝「こい」 など）
+//   ・strip=true のときは濁点・半濁点も外す（濁点なしで書いても、ほかの札とまぎれなければ正解にするため）
+function norm(s, strip){
   s = (s||"").trim().replace(/[\s　]/g,"");
-  s = s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0)-0x60)); // カナ→かな
-  s = s.normalize("NFD").replace(/[゙゚]/g,"").normalize("NFC");            // 濁点除去
+  s = s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0)-0x60));
+  const unDaku = t => t.normalize("NFD").replace(/[\u3099\u309A]/g,"").normalize("NFC");
+  if (strip === "first") s = unDaku(s);            // 濁点を先に外す（「あはぢ」→「あはち」）
   const small = {"ぁ":"あ","ぃ":"い","ぅ":"う","ぇ":"え","ぉ":"お","っ":"つ","ゃ":"や","ゅ":"ゆ","ょ":"よ","ゎ":"わ"};
-  const hist  = {"は":"わ","ひ":"い","ふ":"う","へ":"え","ほ":"お","ゐ":"い","ゑ":"え","を":"お"};
-  return [...s].map(c => hist[small[c]||c] || small[c] || c).join("");
+  const same  = {"ぢ":"じ","づ":"ず","ゐ":"い","ゑ":"え","を":"お"};
+  s = [...s].map(c => same[small[c]||c] || small[c] || c).join("");
+  if (strip && strip !== "first") s = unDaku(s);   // そろえてから濁点を外す（「あわじ」→「あわし」）
+  const medial = {"は":"わ","ひ":"い","ふ":"う","へ":"え","ほ":"お"};
+  return [...s].map((c,i) => i>0 && medial[c] ? medial[c] : c).join("");
 }
-const ALIASES = { 44:["おうこ","おおこ"] };  // あふことの：「おおえ」「おおけ」との友札として「おおこ」も可
-// 入力された答えがどの札を指すかを特定する（決まり字以上／歌番号）。特定できなければ null
-const NKAMI = {}, NKM = {};
-for (const [no,kami,,km] of POEMS){ NKAMI[no] = norm(kami); NKM[no] = norm(km); }
+const ALIASES = { 44:["おうこ","おおこ"] };  // あふことの：「おうこ」（読み）と、「おおえ」「おおけ」との友札として「おおこ」も可
+// 決まり字（と別表記）を正規化しておく。strict＝濁点あり、loose＝濁点なし
+const looseForms = t => [norm(t,"first"), norm(t,true)];
+const KMS = POEMS.map(([no,,,km]) => { const ks = [km, ...(ALIASES[no]||[])];
+  return {no, strict: ks.map(k=>norm(k)), loose: ks.flatMap(looseForms)}; });
+// 入力された答えがどの札を指すかを特定する（決まり字で始まっていればOK／歌番号も可）。特定できなければ null
 function identify(input){
   const raw = (input||"").trim();
   if (!raw) return null;
   const z = raw.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));
   if (/^\d+$/.test(z)){ const n = parseInt(z,10); return n>=1 && n<=100 ? n : null; }
-  const n = norm(raw);
-  for (const [no] of POEMS){
-    if (n.length >= NKM[no].length && NKAMI[no].startsWith(n)) return no;
-    if ((ALIASES[no]||[]).some(a => n.startsWith(norm(a)))) return no;
-  }
-  return null;
+  const n = norm(raw), nl = looseForms(raw);
+  const hit = KMS.filter(k => k.strict.some(x => n.startsWith(x)));
+  if (hit.length === 1) return hit[0].no;
+  if (hit.length > 1) return hit.sort((a,b)=>Math.max(...b.strict.map(x=>x.length))-Math.max(...a.strict.map(x=>x.length)))[0].no;
+  const loose = KMS.filter(k => k.loose.some(x => nl.some(y => y.startsWith(x))));   // 濁点なしで書いた場合は、まぎれない時だけ認める
+  return loose.length === 1 ? loose[0].no : null;
 }
 // 盤面全体で採点する。1回の記録・対戦で、各札に「正解」か「不正解」のどちらか1つだけが付く。
 //   不正解の理由（優先順）： wrong＝その札に違う答えを書いた／blank＝未回答・わからない／confused＝別の札にこの札の決まり字を書かれた
@@ -656,16 +667,7 @@ function scoreBoard(board, answers){
   return res;
 }
 const WHY_LABEL = {wrong:"答え間違い", blank:"未回答", confused:"別の札に書かれた"};
-function judge(no, input){
-  const raw = (input||"").trim();
-  if (!raw) return false;
-  const z = raw.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));
-  if (/^\d+$/.test(z)) return parseInt(z,10) === no;
-  const n = norm(raw), c = CARD[no];
-  const kami = norm(c.kami);
-  if (n.length >= norm(c.km).length && kami.startsWith(n)) return true;
-  return (ALIASES[no]||[]).some(a => n.startsWith(norm(a)));
-}
+function judge(no, input){ return identify(input) === no; }
 
 /* =========================================================
    ストレージ（Firebase / ゲスト）
