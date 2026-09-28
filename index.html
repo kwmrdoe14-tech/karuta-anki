@@ -58,6 +58,26 @@ h3{font-size:15px;margin:16px 0 8px}
 .mini-list button span{font-size:12px;opacity:.8}
 .mini-list button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .card.dim{opacity:.28;filter:grayscale(.6)}
+/* ミニゲームの結果（盤面の上に表示） */
+.board-area{position:relative}
+.mini-res{position:absolute;inset:0;z-index:10;display:flex;overflow:auto;padding:12px;border-radius:10px;background:rgba(20,18,14,.45);animation:mrfade .25s ease-out}
+.mini-res .box{position:relative;margin:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 22px;width:min(560px,100%);box-shadow:0 12px 36px rgba(0,0,0,.3);text-align:center;animation:mrpop .35s cubic-bezier(.2,1.4,.4,1) both;z-index:2}
+.mini-res .rate{font-size:54px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
+.mini-res .stats{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 22px;margin:10px 0 6px}
+.mini-res .stats b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+.mini-res .miss{text-align:left;font-size:14px;margin:8px 0 0}
+.mini-res .btns{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px}
+.mini-res.perfect .box{border:2px solid #d9a531;box-shadow:0 0 0 4px rgba(217,165,49,.25),0 0 40px rgba(255,200,90,.7),0 12px 36px rgba(0,0,0,.3)}
+.mini-res .perfect-title{font-family:"Shippori Mincho B1",serif;font-size:34px;font-weight:800;color:#b8860b;letter-spacing:.08em;animation:mrtitle .9s .15s both}
+.mini-res .perfect-title span{display:inline-block;animation:mrjump .6s both}
+.mini-res .confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:3;border-radius:10px}
+.mini-res .confetti i{position:absolute;top:-16px;width:9px;height:14px;border-radius:2px;opacity:0;animation:mrfall var(--t) var(--d) linear forwards}
+@keyframes mrfade{from{opacity:0}to{opacity:1}}
+@keyframes mrpop{from{opacity:0;transform:scale(.8) translateY(10px)}to{opacity:1;transform:none}}
+@keyframes mrtitle{0%{opacity:0;transform:scale(.4)}60%{opacity:1;transform:scale(1.18)}100%{transform:scale(1)}}
+@keyframes mrjump{0%{transform:translateY(0)}40%{transform:translateY(-12px)}100%{transform:translateY(0)}}
+@keyframes mrfall{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:.9;transform:translate(var(--x),var(--h)) rotate(var(--r))}}
+@media (prefers-reduced-motion: reduce){.mini-res,.mini-res *{animation:none!important}.mini-res .confetti{display:none}}
 
 /* login */
 #view-login{max-width:420px;margin:40px auto}
@@ -361,7 +381,7 @@ td.low{color:var(--danger);font-weight:700}
   </div>
   <p class="hint" id="gameHint" style="margin:0 0 8px"></p>
   <p class="hint portrait-note">スマホは横向きにすると盤面全体が見やすくなります。</p>
-  <div class="board-wrap"><div class="board" id="board"></div></div>
+  <div class="board-area"><div class="board-wrap"><div class="board" id="board"></div></div><div class="mini-res hidden" id="miniRes"></div></div>
   <div class="panel result hidden" id="resultPanel" style="margin-top:16px"></div>
 </section>
 
@@ -921,6 +941,7 @@ function show(name){
     }
   }
   current = name;
+  if (name!=="game") hideMiniResult();
   for (const v of ["login","home","mini","game","positions","stats","battle","badges"]) $("#view-"+v).classList.toggle("hidden", v!==name);
   $("#topbar").classList.toggle("hidden", name==="login");
   $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go===(G&&G.mode==="battle"?"battle":G&&G.mode==="mini"?"mini":"home"))));
@@ -1164,7 +1185,7 @@ function startDeal(isMini){
   }
   const mk = isMini ? miniKey : null;
   G = { mode: mode_, mini: mk, setSec, useFixed, cards: deal(useFixed, mk), phase:"arrange", sel:null, tapMode:"move" };
-  $("#resultPanel").classList.add("hidden");
+  $("#resultPanel").classList.add("hidden"); hideMiniResult();
   show("game"); startMemorize();          // 配ったらすぐに暗記タイマーを動かす
 }
 $("#btnDeal").onclick = () => startDeal(false);
@@ -1205,7 +1226,7 @@ function renderGame(){
       mk("終了して記録","primary",finishRecord);
     }
   } else if (P==="result"){
-    if (G.mode==="mini"){ mk("同じゲームでもう一度","primary",()=>{ miniKey=G.mini; miniSec=G.setSec; startDeal(true); }); mk("ゲームを選ぶ","",()=>{ G=null; show("mini"); }); }
+    if (G.mode==="mini"){ mk("同じゲームでもう一度","primary",()=>{ hideMiniResult(); miniKey=G.mini; miniSec=G.setSec; startDeal(true); }); mk("結果を表示","",()=>{ G.resultShown = true; showMiniResult(false); }); mk("ゲームを選ぶ","",()=>{ hideMiniResult(); G=null; show("mini"); }); }
     else mk("もう一度","primary",()=>{ G=null; show("home"); });
     if (G.mode==="record") mk("記録を見る","",()=>{ G=null; show("stats"); });
   }
@@ -1450,17 +1471,67 @@ function finishMini(auto){
   renderGame();
   const miss = tg.filter(c=>!c.correct).sort((a,b)=>(a.side===b.side?0:a.side==="me"?-1:1)||a.row-b.row||a.col-b.col)
     .map(c=>`<span style="white-space:nowrap">${esc(CARD[c.no].km)}<span class="hint">（${c.side==="me"?"自陣":"相手陣"}・${c.why==="confused" ? `別の札に「${esc(CARD[c.no].km)}」と書いた` : c.answer ? esc(c.answer) : "未回答"}）</span></span>`).join("　");
-  const rp = $("#resultPanel"); rp.classList.remove("hidden");
-  rp.innerHTML = `<div class="row" style="gap:28px">
-    <div><div class="hint">正解率</div><div class="big">${pct(ok, tg.length)}%</div><div class="hint">${ok} / ${tg.length}</div></div>
-    <div><div class="hint">自陣</div><div class="big">${side("me")}</div></div>
-    <div><div class="hint">相手陣</div><div class="big">${side("opp")}</div></div>
-    <div><div class="hint">お手つき</div><div class="big">${ote.length}</div></div>
-    <div><div class="hint">暗記時間</div><div class="big">${fmtTime(G.usedSec)}</div></div>
-    <div><div class="hint">回答時間</div><div class="big">${fmtTime(G.recallSec||0)}</div></div></div>
-    ${miss ? `<h3>まちがえた札</h3><p style="margin:4px 0">${miss}</p>` : `<p>全問正解です。</p>`}
-    ${ote.length ? `<p class="hint">お手つき：${ote.map(c=>esc(CARD[c.no].km)).join("・")}（対象外の札）</p>` : ""}
-    <p class="hint">ミニゲームの結果は保存されません。</p>`;
+  G.miniResult = {ok, total: tg.length, me: side("me"), opp: side("opp"), ote: ote.map(c=>CARD[c.no].km), miss};
+  G.resultShown = true;
+  renderGame();
+  showMiniResult(true);
+}
+// ミニゲームの結果を盤面の上に表示する（満点なら紙吹雪）
+function showMiniResult(first){
+  const R = G.miniResult, el = $("#miniRes");
+  const perfect = R.total > 0 && R.ok === R.total && R.ote.length === 0;
+  el.className = "mini-res" + (perfect ? " perfect" : "");
+  const title = perfect ? `<div class="perfect-title">${[..."満点！"].map((c,i)=>`<span style="animation-delay:${.9+i*.12}s">${c}</span>`).join("")}</div>` : `<div class="hint">正解率</div>`;
+  el.innerHTML = `<div class="box">
+    <div class="hint" style="margin-bottom:2px">${esc(miniOf(G.mini).name)}</div>
+    ${title}
+    <div class="rate">${pct(R.ok, R.total)}%</div>
+    <div class="hint">${R.ok} / ${R.total} 枚</div>
+    <div class="stats">
+      <div><span class="hint">自陣</span><b>${R.me}</b></div>
+      <div><span class="hint">相手陣</span><b>${R.opp}</b></div>
+      <div><span class="hint">お手つき</span><b>${R.ote.length}</b></div>
+      <div><span class="hint">暗記時間</span><b>${fmtTime(G.usedSec)}</b></div>
+      <div><span class="hint">回答時間</span><b>${fmtTime(G.recallSec||0)}</b></div>
+    </div>
+    ${R.miss ? `<p class="miss"><b>まちがえた札：</b>${R.miss}</p>` : ""}
+    ${R.ote.length ? `<p class="miss hint">お手つき：${R.ote.map(esc).join("・")}（対象外の札）</p>` : ""}
+    <div class="btns"><button class="primary" id="mrAgain">同じゲームでもう一度</button><button id="mrBoard">盤面を見る</button><button id="mrMenu">ゲームを選ぶ</button></div>
+  </div>`;
+  if (perfect && first){
+    const cf = document.createElement("div"); cf.className = "confetti";
+    const cols = ["#e8b430","#d9534f","#2f8f6a","#3d7fd1","#e27aa6","#f3d36b","#8c5bd1"];
+    for (let i=0;i<90;i++){
+      const x = document.createElement("i");
+      x.style.left = Math.random()*100 + "%";
+      x.style.background = cols[i % cols.length];
+      x.style.setProperty("--t", (2.2 + Math.random()*1.8).toFixed(2) + "s");
+      x.style.setProperty("--d", (Math.random()*1.4).toFixed(2) + "s");
+      x.style.setProperty("--x", ((Math.random()-.5)*160).toFixed(0) + "px");
+      x.style.setProperty("--h", (el.clientHeight + 40) + "px");
+      x.style.setProperty("--r", ((Math.random()-.5)*1080).toFixed(0) + "deg");
+      if (i%3===0){ x.style.width = "7px"; x.style.height = "7px"; x.style.borderRadius = "50%"; }
+      cf.appendChild(x);
+    }
+    el.appendChild(cf);
+    setTimeout(() => cf.remove(), 5000);
+    fanfare();
+  }
+  // 盤面が小さい（スマホ縦）ときは結果が収まる高さを確保し、結果が見える位置までスクロール
+  const box = el.querySelector(".box");
+  el.parentElement.style.minHeight = (box.offsetHeight + 24) + "px";
+  box.scrollIntoView({block:"center", behavior: first ? "smooth" : "auto"});
+  $("#mrAgain").onclick = () => { hideMiniResult(); miniKey=G.mini; miniSec=G.setSec; startDeal(true); };
+  $("#mrBoard").onclick = () => { hideMiniResult(); G.resultShown = false; renderGame(); };
+  $("#mrMenu").onclick = () => { hideMiniResult(); G=null; show("mini"); };
+}
+function hideMiniResult(){ const el = $("#miniRes"); el.className = "mini-res hidden"; el.innerHTML = ""; el.parentElement.style.minHeight = ""; }
+function fanfare(){
+  try{ const ac=new (window.AudioContext||window.webkitAudioContext)(), t0=ac.currentTime;
+    [[523,0],[659,.12],[784,.24],[1047,.4]].forEach(([f,d]) => { const o=ac.createOscillator(), g=ac.createGain();
+      o.type="triangle"; o.frequency.value=f; o.connect(g); g.connect(ac.destination);
+      g.gain.setValueAtTime(0.0001,t0+d); g.gain.exponentialRampToValueAtTime(.14,t0+d+.02); g.gain.exponentialRampToValueAtTime(.001,t0+d+(d>.3?.9:.25));
+      o.start(t0+d); o.stop(t0+d+1); }); }catch(e){}
 }
 
 function missList(){
