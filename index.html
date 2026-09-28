@@ -52,6 +52,12 @@ h3{font-size:15px;margin:16px 0 8px}
 .seg button{border:none;border-radius:0;padding:8px 16px}
 .seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
 .presets button{padding:5px 10px;font-size:13px}
+.mini-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:4px}
+.mini-list button{text-align:left;padding:10px 12px;line-height:1.35}
+.mini-list button b{display:block;font-size:16px}
+.mini-list button span{font-size:12px;opacity:.8}
+.mini-list button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.card.dim{opacity:.28;filter:grayscale(.6)}
 
 /* login */
 #view-login{max-width:420px;margin:40px auto}
@@ -288,9 +294,17 @@ td.low{color:var(--danger);font-weight:700}
     <div class="seg" id="modeSeg">
       <button data-mode="practice" class="on">練習</button>
       <button data-mode="record">記録</button>
+      <button data-mode="mini">ミニゲーム</button>
     </div>
     <p class="hint" id="modeHint">札を開けていくだけ。頭の中で思い出して確認します（記録は残りません）。</p>
 
+    <div id="miniOpts" class="hidden">
+      <h3>ゲーム</h3>
+      <div class="mini-list" id="miniList"></div>
+      <h3>暗記時間</h3>
+      <div class="seg" id="miniTime"><button data-t="60" class="on">1分</button><button data-t="120">2分</button><button data-t="180">3分</button></div>
+    </div>
+    <div id="normalTime">
     <h3>暗記時間（最大15分）</h3>
     <div class="row">
       <input type="number" id="tMin" class="inline-num" min="0" max="15" value="15"> 分
@@ -298,6 +312,7 @@ td.low{color:var(--danger);font-weight:700}
       <span class="presets row" style="gap:4px">
         <button data-p="60">1分</button><button data-p="180">3分</button><button data-p="300">5分</button><button data-p="600">10分</button><button data-p="900">15分</button>
       </span>
+    </div>
     </div>
 
     <h3>札の書体</h3>
@@ -322,6 +337,7 @@ td.low{color:var(--danger);font-weight:700}
       <li>「暗記開始」でタイマースタート。途中で「終了して裏返す」も可能です。</li>
       <li>全ての札が裏返ったら、好きな札をタップして開けていきます。</li>
       <li>記録モードでは、上の句をひらがなで入力（決まり字まで合っていれば正解）。歌番号でも可。</li>
+      <li>ミニゲームでは、条件に合う札（例：1字決まり）だけを覚えて、その札だけ答えます。答え終わったら「回答を終了」で正解率が出ます（記録は残りません）。</li>
     </ol>
   </div>
 </section>
@@ -971,10 +987,49 @@ let mode = "practice";
 $$("#modeSeg button").forEach(b => b.onclick = () => {
   mode = b.dataset.mode;
   $$("#modeSeg button").forEach(x => x.classList.toggle("on", x===b));
-  $("#modeHint").textContent = mode==="practice"
-    ? "札を開けていくだけ。頭の中で思い出して確認します（記録は残りません）。"
-    : "開けた札の上の句を入力して判定。暗記時間・自陣と相手陣の暗記率を記録します。";
+  $("#modeHint").textContent = {
+    practice: "札を開けていくだけ。頭の中で思い出して確認します（記録は残りません）。",
+    record: "開けた札の上の句を入力して判定。暗記時間・自陣と相手陣の暗記率を記録します。",
+    mini: "条件に合う札だけを覚えて、その札だけ答えます。判定は「記録」「対戦」と同じ（記録は残りません）。"
+  }[mode];
+  $("#miniOpts").classList.toggle("hidden", mode!=="mini");
+  $("#normalTime").classList.toggle("hidden", mode==="mini");
 });
+
+/* ---------- ミニゲーム ---------- */
+const MINI = [
+  {key:"musume",  name:"娘、房干せ",     desc:"1字決まり（む・す・め・ふ・さ・ほ・せ）", test: km => km.length===1, min:5},
+  {key:"asoko",   name:"あそこにあいつ", desc:"「あ」で始まる札", first:["あ"], min:12},
+  {key:"nani",    name:"なにがなんでも", desc:"「な」で始まる札", first:["な"], min:6},
+  {key:"wao",     name:"わお❗️",         desc:"「わ」「お（を）」で始まる札（あふこ＝おおこ を含む）", first:["わ","お"], min:10},
+  {key:"tako",    name:"たこ🐙",         desc:"「た」「こ」で始まる札", first:["た","こ"], min:8},
+  {key:"tsuyu",   name:"梅雨、霜、雨",   desc:"「つ」「ゆ」「し」「も」「う」で始まる札", first:["つ","ゆ","し","も","う"], min:7},
+  {key:"kisetsu", name:"季節感",         desc:"あきか・あきの・はるす・はるの・なつ", kms:["あきか","あきの","はるす","はるの","なつ"], min:5},
+];
+// 44「あふこ」は競技では「おおえ」「おおけ」と共に「お」の札として扱う
+const firstKana = no => no===44 ? "お" : norm(CARD[no].km)[0];
+for (const m of MINI){
+  m.nos = POEMS.map(p=>p[0]).filter(no => { const k = norm(CARD[no].km);
+    return m.test ? m.test(CARD[no].km) : m.first ? m.first.includes(firstKana(no)) : m.kms.map(x=>norm(x)).includes(k); });
+  m.max = m.nos.length;
+}
+let miniKey = MINI[0].key, miniSec = 60;
+try { miniKey = localStorage.getItem("ka_mini") || miniKey; miniSec = +localStorage.getItem("ka_miniSec") || miniSec; } catch(e){}
+if (!MINI.some(m=>m.key===miniKey)) miniKey = MINI[0].key;
+if (![60,120,180].includes(miniSec)) miniSec = 60;
+const miniOf = k => MINI.find(m=>m.key===k);
+function renderMiniOpts(){
+  const L = $("#miniList"); L.innerHTML = "";
+  for (const m of MINI){
+    const b = document.createElement("button"); b.className = m.key===miniKey ? "on" : "";
+    b.innerHTML = `<b>${esc(m.name)}</b><span>${esc(m.desc)}<br>${m.max}枚中 ${m.min===m.max ? "全部" : `${m.min}〜${m.max}枚`}が盤面に</span>`;
+    b.onclick = () => { miniKey = m.key; try{localStorage.setItem("ka_mini",miniKey);}catch(_){} renderMiniOpts(); };
+    L.appendChild(b);
+  }
+  $$("#miniTime button").forEach(b => b.classList.toggle("on", +b.dataset.t===miniSec));
+}
+$$("#miniTime button").forEach(b => b.onclick = () => { miniSec = +b.dataset.t; try{localStorage.setItem("ka_miniSec",miniSec);}catch(_){} renderMiniOpts(); });
+renderMiniOpts();
 $$(".presets button").forEach(b => b.onclick = () => { const p=+b.dataset.p; $("#tMin").value=Math.floor(p/60); $("#tSec").value=p%60; });
 function refreshHome(){
   const n = Object.keys(positions).length;
@@ -1068,15 +1123,21 @@ function arrangeMine(mine, useFixed){
   packSide(my);
   return my.map(({no,row,col}) => ({no, row, col}));
 }
-function deal(useFixed){
-  const all = shuffle(POEMS.map(p=>p[0]));
+function deal(useFixed, miniK){
+  let all = shuffle(POEMS.map(p=>p[0])), tgt = null;
+  if (miniK){                                        // ミニゲーム：対象の札を min〜max 枚、残りは対象外の札で50枚
+    const m = miniOf(miniK);
+    const k = m.min + Math.floor(Math.random()*(m.max - m.min + 1));
+    tgt = new Set(shuffle([...m.nos]).slice(0, k));
+    all = shuffle([...tgt, ...all.filter(no => !m.nos.includes(no)).slice(0, PER_SIDE*2 - k)]);
+  }
   const mine = all.slice(0,PER_SIDE), opp = all.slice(PER_SIDE, PER_SIDE*2);
   const cards = arrangeMine(mine, useFixed).map(x => ({...x, side:"me"}));
   // 相手陣（ランダムに配ってから、自陣と同じく左右の端へ詰める）
   const oppCards = fillRandom(opp, new Set(), [0,0,0]).map(x => ({...x, _t:Math.random()}));
   packSide(oppCards);
   for (const x of oppCards) cards.push({no:x.no, row:x.row, col:x.col, side:"opp"});
-  for (const c of cards){ c.open = true; c.answer = null; c.correct = null; c.flip = false; c.km = false; }
+  for (const c of cards){ c.open = true; c.answer = null; c.correct = null; c.flip = false; c.km = false; c.target = tgt ? tgt.has(c.no) : true; }
   return cards;
 }
 
@@ -1087,23 +1148,30 @@ let G = null;   // {mode, setSec, cards, phase:'arrange'|'memorize'|'recall'|'re
 let timerId = null;
 function stopTimer(){ if (timerId){ clearInterval(timerId); timerId=null; } }
 
-$("#btnDeal").onclick = () => {
-  const setSec = Math.min(900, Math.max(10, (+$("#tMin").value||0)*60 + (+$("#tSec").value||0)));
-  $("#tMin").value = Math.floor(setSec/60); $("#tSec").value = setSec%60;
-  G = { mode, setSec, cards: deal($("#useFixed").checked), phase:"arrange", sel:null, tapMode:"move" };
+function startDeal(){
+  let setSec;
+  if (mode==="mini") setSec = miniSec;
+  else {
+    setSec = Math.min(900, Math.max(10, (+$("#tMin").value||0)*60 + (+$("#tSec").value||0)));
+    $("#tMin").value = Math.floor(setSec/60); $("#tSec").value = setSec%60;
+  }
+  const mk = mode==="mini" ? miniKey : null;
+  G = { mode, mini: mk, setSec, cards: deal($("#useFixed").checked, mk), phase:"arrange", sel:null, tapMode:"move" };
   $("#resultPanel").classList.add("hidden");
   show("game"); renderGame();
-};
+}
+$("#btnDeal").onclick = startDeal;
 
 function renderGame(){
   if (G.mode==="battle") return renderBattleGame();
   const P = G.phase;
-  $("#phaseLabel").textContent = {arrange:"配置の確認", memorize:"暗記中", recall:"答え合わせ", result:"結果"}[P] + (G.mode==="record"?"（記録）":"（練習）");
+  $("#phaseLabel").textContent = {arrange:"配置の確認", memorize:"暗記中", recall:"答え合わせ", result:"結果"}[P] + (G.mode==="mini" ? `（${miniOf(G.mini).name}）` : G.mode==="record"?"（記録）":"（練習）");
   const tapHint = {flip:"札をタップすると裏返ります（もう一度タップで表に戻ります）。", kimari:"札をタップすると決まり字が赤字で表示されます（もう一度タップで消えます）。"}[G.tapMode];
   const hint = {
-    arrange: tapHint || "自陣の札をタップ → 移動先のマス（または別の札）をタップで移動・入れ替え。準備ができたら「暗記開始」。",
-    memorize: tapHint || "暗記中も自陣の札は動かせます。早めに終えるときは「終了して裏返す」。",
-    recall: G.mode==="record" ? "開けたい札をタップして、上の句（決まり字以上）を入力します。" : "開けたい札をタップして、思い出してから確認します。",
+    arrange: (G.mode==="mini" ? `覚えるのは明るく表示された札（${miniOf(G.mini).desc}）だけ。` : "") + (tapHint || "自陣の札をタップ → 移動先のマス（または別の札）をタップで移動・入れ替え。準備ができたら「暗記開始」。"),
+    memorize: (G.mode==="mini" ? `覚えるのは明るく表示された札（${miniOf(G.mini).desc}）だけ。` : "") + (tapHint || "暗記中も自陣の札は動かせます。早めに終えるときは「終了して裏返す」。"),
+    recall: G.mode==="mini" ? `覚えた札（${miniOf(G.mini).desc}）のある場所をタップして、上の句（決まり字以上）を入力。答え終わったら「回答を終了」。対象外の札を開けるとお手つきです。`
+      : G.mode==="record" ? "開けたい札をタップして、上の句（決まり字以上）を入力します。" : "開けたい札をタップして、思い出してから確認します。",
     result:""
   }[P];
   $("#gameHint").textContent = hint;
@@ -1112,7 +1180,7 @@ function renderGame(){
   const tg = (t,key) => { const b = mk(t, "toggle"+(G.tapMode===key?" on":""), () => { G.tapMode = G.tapMode===key ? "move" : key; G.sel = null; renderGame(); }); b.setAttribute("aria-pressed", G.tapMode===key); };
   if (P==="arrange"){
     $("#timer").textContent = fmtTime(G.setSec); $("#timer").classList.remove("low");
-    mk("配り直す","",()=>{ G.cards = deal($("#useFixed").checked); G.sel=null; renderBoard(); });
+    mk("配り直す","",()=>{ G.cards = deal($("#useFixed").checked, G.mini); G.sel=null; renderBoard(); updateScore(); });
     mk("暗記開始","primary",startMemorize);
     tg("タップで裏返す","flip"); tg("タップで決まり字を出す","kimari");
   } else if (P==="memorize"){
@@ -1122,11 +1190,14 @@ function renderGame(){
     if (G.mode==="practice"){
       mk("全て開ける","",()=>{ G.cards.forEach(c=>c.open=true); renderBoard(); updateScore(); });
       mk("終わる","primary",finishPractice);
+    } else if (G.mode==="mini"){
+      mk("回答を終了","primary",()=>finishMini(false));
     } else {
       mk("終了して記録","primary",finishRecord);
     }
   } else if (P==="result"){
-    mk("もう一度","primary",()=>{ G=null; show("home"); });
+    if (G.mode==="mini"){ mk("同じゲームでもう一度","primary",()=>{ mode="mini"; miniKey=G.mini; miniSec=G.setSec; startDeal(); }); mk("ホームへ","",()=>{ G=null; show("home"); }); }
+    else mk("もう一度","primary",()=>{ G=null; show("home"); });
     if (G.mode==="record") mk("記録を見る","",()=>{ G=null; show("stats"); });
   }
   renderBoard(); updateScore();
@@ -1183,6 +1254,13 @@ function beep(){
 
 function updateScore(){
   const el = $("#scoreLabel");
+  if (G.mode==="mini"){
+    const tg = G.cards.filter(c=>c.target);
+    if (G.phase==="arrange" || G.phase==="memorize") el.innerHTML = `覚える札 <b>${tg.length}</b> 枚`;
+    else if (G.phase==="recall") el.innerHTML = `開けた札 <b>${G.cards.filter(c=>c.open).length}</b>`;
+    else el.innerHTML = `正解 <b>${tg.filter(c=>c.correct).length}</b> / ${tg.length}`;
+    return;
+  }
   if (G.phase==="arrange" || G.phase==="memorize"){ el.textContent=""; return; }
   const opened = G.cards.filter(c=>c.open).length;
   if (G.mode==="practice"){ el.innerHTML = `開けた札 <b>${opened}</b> / 50`; return; }
@@ -1201,7 +1279,7 @@ function cardEl(c, faceUp){
     f.style.setProperty("--fs", 5/Math.max(5,...lines.map(l=>l.length)));
     for (const l of lines){ const s=document.createElement("span"); s.textContent=l; f.appendChild(s); }
     d.appendChild(f);
-    if (G && (G.mode==="record" || G.mode==="battle") && c.correct!==null){
+    if (G && (G.mode==="record" || G.mode==="battle" || G.mode==="mini") && c.correct!==null){
       d.classList.add(c.correct?"ok":"ng");
       const b=document.createElement("div"); b.className="badge";
       b.textContent = CARD[c.no].km;
@@ -1212,6 +1290,7 @@ function cardEl(c, faceUp){
   if (c.km && G && ["arrange","memorize"].includes(G.phase)){
     const k=document.createElement("div"); k.className="kmov"; k.textContent=CARD[c.no].km; d.appendChild(k);
   }
+  if (G && G.mode==="mini" && faceUp && !c.target && c.correct===null) d.classList.add("dim");
   if (!d.title) d.title = faceUp ? `${c.no} ${CARD[c.no].km}` : "";
   return d;
 }
@@ -1279,7 +1358,7 @@ function submitAnswer(text){
   pending.answer = text; pending.open = true;
   const answered = pending; pending = null; $("#answerDlg").close();
   if (G.mode==="battle"){ battleAnswered(answered); return; }
-  rescoreRecord();
+  if (G.mode==="mini") rescoreMini(); else rescoreRecord();
   renderBoard(); updateScore(); maybeAllOpen();
 }
 $("#answerForm").onsubmit = e => { e.preventDefault(); submitAnswer($("#answerInput").value); };
@@ -1291,6 +1370,7 @@ function maybeAllOpen(){
   if (G.mode==="battle") return;
   if (G.cards.every(c=>c.open)){
     if (G.mode==="record") finishRecord(true);
+    else if (G.mode==="mini") finishMini(true);
     else finishPractice();
   }
 }
@@ -1336,6 +1416,42 @@ async function finishRecord(auto){
   if (award) awardBadge(award);
   try { await Store.addRecord(rec); $("#saveState").textContent = "記録を保存しました"; }
   catch(e){ console.error(e); $("#saveState").textContent = "保存に失敗しました：" + e.message; }
+}
+
+// ミニゲーム：判定は記録・対戦と同じ（盤面全体で採点）。対象外の札を開けた場合はお手つき
+function rescoreMini(final){
+  const answers = {};
+  for (const c of G.cards) if (c.open && c.answer!=null) answers[c.no] = c.answer;
+  const res = scoreBoard(G.cards, answers);
+  for (const c of G.cards){
+    if (c.target){ if (c.open || final){ c.correct = res[c.no].ok; c.why = res[c.no].why; } }
+    else if (c.open){ c.correct = false; c.why = "otetsuki"; }
+  }
+}
+function finishMini(auto){
+  const tg = G.cards.filter(c=>c.target);
+  if (!auto && !confirm("回答を終了して結果を見ますか？")) return;
+  stopRecallClock();
+  rescoreMini(true);
+  const ok = tg.filter(c=>c.correct).length;
+  const ote = G.cards.filter(c=>!c.target && c.open);
+  const side = s => { const x = tg.filter(c=>c.side===s); return `${x.filter(c=>c.correct).length} / ${x.length}`; };
+  G.phase = "result";
+  G.cards.forEach(c=>{ c.open = true; });
+  renderGame();
+  const miss = tg.filter(c=>!c.correct).sort((a,b)=>(a.side===b.side?0:a.side==="me"?-1:1)||a.row-b.row||a.col-b.col)
+    .map(c=>`<span style="white-space:nowrap">${esc(CARD[c.no].km)}<span class="hint">（${c.side==="me"?"自陣":"相手陣"}・${c.why==="confused" ? `別の札に「${esc(CARD[c.no].km)}」と書いた` : c.answer ? esc(c.answer) : "未回答"}）</span></span>`).join("　");
+  const rp = $("#resultPanel"); rp.classList.remove("hidden");
+  rp.innerHTML = `<div class="row" style="gap:28px">
+    <div><div class="hint">正解率</div><div class="big">${pct(ok, tg.length)}%</div><div class="hint">${ok} / ${tg.length}</div></div>
+    <div><div class="hint">自陣</div><div class="big">${side("me")}</div></div>
+    <div><div class="hint">相手陣</div><div class="big">${side("opp")}</div></div>
+    <div><div class="hint">お手つき</div><div class="big">${ote.length}</div></div>
+    <div><div class="hint">暗記時間</div><div class="big">${fmtTime(G.usedSec)}</div></div>
+    <div><div class="hint">回答時間</div><div class="big">${fmtTime(G.recallSec||0)}</div></div></div>
+    ${miss ? `<h3>まちがえた札</h3><p style="margin:4px 0">${miss}</p>` : `<p>全問正解です。</p>`}
+    ${ote.length ? `<p class="hint">お手つき：${ote.map(c=>esc(CARD[c.no].km)).join("・")}（対象外の札）</p>` : ""}
+    <p class="hint">ミニゲームの結果は保存されません。</p>`;
 }
 
 function missList(){
