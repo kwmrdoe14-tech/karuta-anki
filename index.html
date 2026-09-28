@@ -242,6 +242,7 @@ td.low{color:var(--danger);font-weight:700}
   <div class="brand">ももふだ</div>
   <nav>
     <button data-go="home">練習する</button>
+    <button data-go="mini">ミニゲーム</button>
     <button data-go="positions">定位置</button>
     <button data-go="battle" id="navBattle">対戦</button>
     <button data-go="stats">記録</button>
@@ -294,17 +295,9 @@ td.low{color:var(--danger);font-weight:700}
     <div class="seg" id="modeSeg">
       <button data-mode="practice" class="on">練習</button>
       <button data-mode="record">記録</button>
-      <button data-mode="mini">ミニゲーム</button>
     </div>
     <p class="hint" id="modeHint">札を開けていくだけ。頭の中で思い出して確認します（記録は残りません）。</p>
 
-    <div id="miniOpts" class="hidden">
-      <h3>ゲーム</h3>
-      <div class="mini-list" id="miniList"></div>
-      <h3>暗記時間</h3>
-      <div class="seg" id="miniTime"><button data-t="60" class="on">1分</button><button data-t="120">2分</button><button data-t="180">3分</button></div>
-    </div>
-    <div id="normalTime">
     <h3>暗記時間（最大15分）</h3>
     <div class="row">
       <input type="number" id="tMin" class="inline-num" min="0" max="15" value="15"> 分
@@ -312,7 +305,6 @@ td.low{color:var(--danger);font-weight:700}
       <span class="presets row" style="gap:4px">
         <button data-p="60">1分</button><button data-p="180">3分</button><button data-p="300">5分</button><button data-p="600">10分</button><button data-p="900">15分</button>
       </span>
-    </div>
     </div>
 
     <h3>札の書体</h3>
@@ -334,11 +326,27 @@ td.low{color:var(--danger);font-weight:700}
     <ol class="hint" style="margin:0;padding-left:20px">
       <li>100枚からランダムに50枚、自陣25枚・相手陣25枚が配られます。</li>
       <li>自陣は定位置の段・左右・並び順を守って、端から詰めて並びます。札をタップ → 移動先をタップで入れ替え・移動できます。</li>
-      <li>「暗記開始」でタイマースタート。途中で「終了して裏返す」も可能です。</li>
+      <li>札が配られるとすぐに暗記のタイマーが始まります。途中で「終了して裏返す」も可能です。</li>
       <li>全ての札が裏返ったら、好きな札をタップして開けていきます。</li>
       <li>記録モードでは、上の句をひらがなで入力（決まり字まで合っていれば正解）。歌番号でも可。</li>
-      <li>ミニゲームでは、条件に合う札（例：1字決まり）だけを覚えて、その札だけ答えます。答え終わったら「回答を終了」で正解率が出ます（記録は残りません）。</li>
     </ol>
+  </div>
+</section>
+
+<!-- ===== mini game ===== -->
+<section id="view-mini" class="hidden">
+  <div class="panel">
+    <h2>ミニゲーム</h2>
+    <p class="hint">ふつうの50枚の盤面から、条件に合う札だけを覚えて、その札だけ答えます。判定は「記録」「対戦」と同じ。答え終わったら「回答を終了」で正解率が出ます（結果は保存されません）。</p>
+    <h3>ゲーム</h3>
+    <div class="mini-list" id="miniList"></div>
+    <h3>暗記時間</h3>
+    <div class="seg" id="miniTime"><button data-t="60" class="on">1分</button><button data-t="120">2分</button><button data-t="180">3分</button></div>
+    <h3>自陣の並べ方</h3>
+    <label class="row"><input type="checkbox" id="miniUseFixed" checked> 登録した定位置を使う</label>
+    <div class="row" style="margin-top:18px">
+      <button class="primary" id="btnMiniDeal" style="padding:12px 28px;font-size:17px">札を配る</button>
+    </div>
   </div>
 </section>
 
@@ -913,10 +921,11 @@ function show(name){
     }
   }
   current = name;
-  for (const v of ["login","home","game","positions","stats","battle","badges"]) $("#view-"+v).classList.toggle("hidden", v!==name);
+  for (const v of ["login","home","mini","game","positions","stats","battle","badges"]) $("#view-"+v).classList.toggle("hidden", v!==name);
   $("#topbar").classList.toggle("hidden", name==="login");
-  $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go===(G&&G.mode==="battle"?"battle":"home"))));
+  $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go===(G&&G.mode==="battle"?"battle":G&&G.mode==="mini"?"mini":"home"))));
   if (name==="home") refreshHome();
+  if (name==="mini") renderMiniOpts();
   if (name==="positions") renderPositions();
   if (name==="stats") renderStats();
   if (name==="battle") renderBattle();
@@ -987,13 +996,9 @@ let mode = "practice";
 $$("#modeSeg button").forEach(b => b.onclick = () => {
   mode = b.dataset.mode;
   $$("#modeSeg button").forEach(x => x.classList.toggle("on", x===b));
-  $("#modeHint").textContent = {
-    practice: "札を開けていくだけ。頭の中で思い出して確認します（記録は残りません）。",
-    record: "開けた札の上の句を入力して判定。暗記時間・自陣と相手陣の暗記率を記録します。",
-    mini: "条件に合う札だけを覚えて、その札だけ答えます。判定は「記録」「対戦」と同じ（記録は残りません）。"
-  }[mode];
-  $("#miniOpts").classList.toggle("hidden", mode!=="mini");
-  $("#normalTime").classList.toggle("hidden", mode==="mini");
+  $("#modeHint").textContent = mode==="practice"
+    ? "札を開けていくだけ。頭の中で思い出して確認します（記録は残りません）。"
+    : "開けた札の上の句を入力して判定。暗記時間・自陣と相手陣の暗記率を記録します。";
 });
 
 /* ---------- ミニゲーム ---------- */
@@ -1148,19 +1153,22 @@ let G = null;   // {mode, setSec, cards, phase:'arrange'|'memorize'|'recall'|'re
 let timerId = null;
 function stopTimer(){ if (timerId){ clearInterval(timerId); timerId=null; } }
 
-function startDeal(){
+function startDeal(isMini){
+  const mode_ = isMini ? "mini" : mode;
+  const useFixed = isMini ? $("#miniUseFixed").checked : $("#useFixed").checked;
   let setSec;
-  if (mode==="mini") setSec = miniSec;
+  if (isMini) setSec = miniSec;
   else {
     setSec = Math.min(900, Math.max(10, (+$("#tMin").value||0)*60 + (+$("#tSec").value||0)));
     $("#tMin").value = Math.floor(setSec/60); $("#tSec").value = setSec%60;
   }
-  const mk = mode==="mini" ? miniKey : null;
-  G = { mode, mini: mk, setSec, cards: deal($("#useFixed").checked, mk), phase:"arrange", sel:null, tapMode:"move" };
+  const mk = isMini ? miniKey : null;
+  G = { mode: mode_, mini: mk, setSec, useFixed, cards: deal(useFixed, mk), phase:"arrange", sel:null, tapMode:"move" };
   $("#resultPanel").classList.add("hidden");
-  show("game"); renderGame();
+  show("game"); startMemorize();          // 配ったらすぐに暗記タイマーを動かす
 }
-$("#btnDeal").onclick = startDeal;
+$("#btnDeal").onclick = () => startDeal(false);
+$("#btnMiniDeal").onclick = () => startDeal(true);
 
 function renderGame(){
   if (G.mode==="battle") return renderBattleGame();
@@ -1168,8 +1176,8 @@ function renderGame(){
   $("#phaseLabel").textContent = {arrange:"配置の確認", memorize:"暗記中", recall:"答え合わせ", result:"結果"}[P] + (G.mode==="mini" ? `（${miniOf(G.mini).name}）` : G.mode==="record"?"（記録）":"（練習）");
   const tapHint = {flip:"札をタップすると裏返ります（もう一度タップで表に戻ります）。", kimari:"札をタップすると決まり字が赤字で表示されます（もう一度タップで消えます）。"}[G.tapMode];
   const hint = {
-    arrange: (G.mode==="mini" ? `覚えるのは明るく表示された札（${miniOf(G.mini).desc}）だけ。` : "") + (tapHint || "自陣の札をタップ → 移動先のマス（または別の札）をタップで移動・入れ替え。準備ができたら「暗記開始」。"),
-    memorize: (G.mode==="mini" ? `覚えるのは明るく表示された札（${miniOf(G.mini).desc}）だけ。` : "") + (tapHint || "暗記中も自陣の札は動かせます。早めに終えるときは「終了して裏返す」。"),
+    arrange: (G.mode==="mini" ? `50枚の中から ${miniOf(G.mini).desc} だけを覚えます。` : "") + (tapHint || "自陣の札をタップ → 移動先のマス（または別の札）をタップで移動・入れ替え。準備ができたら「暗記開始」。"),
+    memorize: (G.mode==="mini" ? `50枚の中から ${miniOf(G.mini).desc} だけを覚えます。` : "") + (tapHint || "自陣の札をタップ → 移動先のマス（または別の札）をタップで移動・入れ替えできます。早めに終えるときは「終了して裏返す」。"),
     recall: G.mode==="mini" ? `覚えた札（${miniOf(G.mini).desc}）のある場所をタップして、上の句（決まり字以上）を入力。答え終わったら「回答を終了」。対象外の札を開けるとお手つきです。`
       : G.mode==="record" ? "開けたい札をタップして、上の句（決まり字以上）を入力します。" : "開けたい札をタップして、思い出してから確認します。",
     result:""
@@ -1180,11 +1188,12 @@ function renderGame(){
   const tg = (t,key) => { const b = mk(t, "toggle"+(G.tapMode===key?" on":""), () => { G.tapMode = G.tapMode===key ? "move" : key; G.sel = null; renderGame(); }); b.setAttribute("aria-pressed", G.tapMode===key); };
   if (P==="arrange"){
     $("#timer").textContent = fmtTime(G.setSec); $("#timer").classList.remove("low");
-    mk("配り直す","",()=>{ G.cards = deal($("#useFixed").checked, G.mini); G.sel=null; renderBoard(); updateScore(); });
+    mk("配り直す","",()=>{ G.cards = deal(G.useFixed, G.mini); G.sel=null; renderBoard(); updateScore(); });
     mk("暗記開始","primary",startMemorize);
     tg("タップで裏返す","flip"); tg("タップで決まり字を出す","kimari");
   } else if (P==="memorize"){
     mk("終了して裏返す","primary",()=>{ if(confirm("暗記を終了して札を裏返しますか？")) endMemorize(); });
+    mk("配り直す","",()=>{ if(!confirm("札を配り直して、タイマーを最初から始めますか？")) return; G.cards = deal(G.useFixed, G.mini); startMemorize(); });
     tg("タップで裏返す","flip"); tg("タップで決まり字を出す","kimari");
   } else if (P==="recall"){
     if (G.mode==="practice"){
@@ -1196,7 +1205,7 @@ function renderGame(){
       mk("終了して記録","primary",finishRecord);
     }
   } else if (P==="result"){
-    if (G.mode==="mini"){ mk("同じゲームでもう一度","primary",()=>{ mode="mini"; miniKey=G.mini; miniSec=G.setSec; startDeal(); }); mk("ホームへ","",()=>{ G=null; show("home"); }); }
+    if (G.mode==="mini"){ mk("同じゲームでもう一度","primary",()=>{ miniKey=G.mini; miniSec=G.setSec; startDeal(true); }); mk("ゲームを選ぶ","",()=>{ G=null; show("mini"); }); }
     else mk("もう一度","primary",()=>{ G=null; show("home"); });
     if (G.mode==="record") mk("記録を見る","",()=>{ G=null; show("stats"); });
   }
@@ -1290,7 +1299,7 @@ function cardEl(c, faceUp){
   if (c.km && G && ["arrange","memorize"].includes(G.phase)){
     const k=document.createElement("div"); k.className="kmov"; k.textContent=CARD[c.no].km; d.appendChild(k);
   }
-  if (G && G.mode==="mini" && faceUp && !c.target && c.correct===null) d.classList.add("dim");
+  if (G && G.mode==="mini" && G.phase==="result" && !c.target && c.correct===null) d.classList.add("dim");   // 結果画面でだけ対象外を薄く
   if (!d.title) d.title = faceUp ? `${c.no} ${CARD[c.no].km}` : "";
   return d;
 }
@@ -1875,9 +1884,11 @@ async function enterRoom(code){
         maybeEarlyEnd();
         if (G.opp && G.opp.resigned && !G.finished && G.phase!=="lobby") finalizeBattle();
         if (G.phase==="recall") checkFinish();
+        maybeAutoStart();
         renderBoard(); battleScore(); renderBattleButtons();
       }));
     }
+    maybeAutoStart();
     battleTick(true);
   }));
   $("#resultPanel").classList.add("hidden");
@@ -1965,7 +1976,7 @@ function renderBattleGame(){
     lobby: (G.isHost ? `部屋コード <span class="roomcode">${esc(G.code)}</span> を相手に伝えてください。` : `部屋 ${esc(G.code)} に参加しました。`) +
            `　暗記 ${fmtTime(r.memSec)}／解答の制限時間 ${fmtTime(r.ansSec)}。` +
            (opp ? `<b>${esc(opp)}</b> が参加しています。` : "相手の参加を待っています…") +
-           `<br>札は開始と同時に表になります。札を動かせるのは暗記時間の最初の1/3（${fmtTime(r.memSec/3)}）までです。` + (G.isHost ? "" : "ホストが開始するのを待っています。"),
+           `<br>相手がそろうと自動で始まり、札が表になって暗記のタイマーが動きます。札を動かせるのは暗記時間の最初の1/3（${fmtTime(r.memSec/3)}）までです。`,
     countdown: "まもなく暗記が始まります。",
     memorize: `相手：<b>${esc(opp||"相手")}</b>　<b id="moveLeft"></b>`,
     recall: G.timeUp ? "制限時間になりました。結果を集計しています…" : G.myDone ? "全ての札に解答しました。相手の終了を待っています…" : "開けたい札をタップして、上の句（決まり字以上）を入力します。全50枚に解答すると終了です。",
@@ -1978,7 +1989,6 @@ function renderBattleButtons(){
   const P = G.phase, btns = $("#gameBtns"); btns.innerHTML = "";
   const mk = (t,cls,fn,dis) => { const b=document.createElement("button"); b.textContent=t; if(cls) b.className=cls; b.onclick=fn; b.disabled=!!dis; btns.appendChild(b); return b; };
   if (P==="lobby"){
-    if (G.isHost) mk("対戦開始","primary",startBattle, !(G.oppUid && G.opp && G.opp.layout));
     mk("退出","",()=>show("battle"));
   } else if (P==="memorize"){
     const oppVote = G.opp && G.opp.endVote;
@@ -2007,6 +2017,13 @@ async function resign(){
   if ($("#answerDlg").open){ pending=null; $("#answerDlg").close(); }
   try { await fb.fs.setDoc(fb.fs.doc(fb.db,"rooms",G.code,"players",user.uid), {resigned:true}, {merge:true}); } catch(e){ console.error(e); }
   finalizeBattle();
+}
+// 2人そろって両方の札が配られたら、ホスト側で自動的に開始する（3秒後に暗記スタート）
+function maybeAutoStart(){
+  if (!G || G.mode!=="battle" || !G.isHost || G.autoStarted) return;
+  if (!G.room || G.room.status!=="lobby" || !G.oppUid || !(G.opp && G.opp.layout && G.opp.layout.length)) return;
+  G.autoStarted = true;
+  startBattle().catch(e => { console.error(e); G.autoStarted = false; });
 }
 async function startBattle(){
   const now = serverNow(), r = G.room;
