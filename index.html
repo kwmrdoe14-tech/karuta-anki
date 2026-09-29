@@ -79,6 +79,43 @@ h3{font-size:15px;margin:16px 0 8px}
 @keyframes mrfall{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:.9;transform:translate(var(--x),var(--h)) rotate(var(--r))}}
 @media (prefers-reduced-motion: reduce){.mini-res,.mini-res *{animation:none!important}.mini-res .confetti{display:none}}
 
+/* ホーム（各モードの入口） */
+.top-hello{margin:2px 0 12px}
+.top-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(160px,30%),1fr));gap:14px;max-width:1100px}
+.mode-tile{padding:0;border-radius:14px;overflow:hidden;text-align:left;display:flex;flex-direction:column;background:var(--panel);transition:transform .15s,box-shadow .15s}
+.mode-tile:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.14)}
+.mode-tile:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.mode-tile .lbl{padding:10px 14px 12px;border-top:1px solid var(--line)}
+.mode-tile .lbl b{display:block;font-size:19px;font-family:"Shippori Mincho B1",serif;font-weight:800}
+.mode-tile .lbl span{font-size:12.5px;color:var(--muted)}
+.scene{position:relative;aspect-ratio:16/10;container-type:inline-size;overflow:hidden;pointer-events:none;
+  background:repeating-linear-gradient(90deg,var(--tatami) 0 6px,var(--tatami2) 6px 8px)}
+.scene.plain{background:var(--bg)}
+.scene .sc{position:absolute;--cw:9cqw;width:var(--cw);height:calc(var(--cw)*1.38)}
+.scene .sc .card{cursor:inherit}
+.scene .chip{position:absolute;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:.6cqw 2.4cqw;font-size:3.4cqw;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.scene .dlg{position:absolute;left:17%;right:17%;top:34%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:3cqw;padding:3cqw 3.4cqw;box-shadow:0 2cqw 5cqw rgba(0,0,0,.3);font-size:3.3cqw}
+.scene .dlg .t{font-weight:800;font-size:3.8cqw}
+.scene .dlg .in{margin:2cqw 0;border:2px solid var(--accent);border-radius:1.6cqw;padding:1.2cqw 2cqw;font-size:4.6cqw;font-weight:700;letter-spacing:.1em}
+.scene .dlg .in::after{content:"";display:inline-block;width:2px;height:4.4cqw;background:var(--ink);vertical-align:-0.6cqw;margin-left:1px;animation:caret 1s steps(1) infinite}
+.scene .dlg .bt{display:flex;justify-content:flex-end;gap:1.6cqw}
+.scene .dlg .bt i{font-style:normal;border:1px solid var(--line);border-radius:1.6cqw;padding:.8cqw 2.4cqw}
+.scene .dlg .bt i.p{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.scene .bubble{position:absolute;transform:translateX(-50%);background:#fffbe8;color:#5a3d00;border:1px solid #d9a531;border-radius:2cqw;padding:.5cqw 1.8cqw;font-size:3.2cqw;font-weight:800;white-space:nowrap;font-family:"Shippori Mincho B1",serif}
+.scene .dot{position:absolute;width:1.8cqw;height:2.6cqw;border-radius:.4cqw}
+.scene .vs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:"Shippori Mincho B1",serif;font-weight:800;font-size:9cqw;color:#fff;text-shadow:0 0 2cqw rgba(0,0,0,.6),0 .5cqw 1cqw rgba(0,0,0,.5)}
+.scene.gold{background:radial-gradient(ellipse at center,#5b4518 0%,#2a1f0b 75%)}
+.scene .rays{position:absolute;left:50%;top:50%;width:150cqw;height:150cqw;margin:-75cqw 0 0 -75cqw;border-radius:50%;
+  background:repeating-conic-gradient(from 0deg,rgba(255,226,150,.28) 0deg 4deg,rgba(255,226,150,0) 9deg 18deg)}
+.scene .medal{position:absolute;--cw:13cqw;padding:1.6cqw;border-radius:2.4cqw}
+.scene .medal .no{font-size:2.6cqw}
+.scene .cellbox{position:absolute;--cw:8cqw;width:var(--cw);height:calc(var(--cw)*1.38);border-radius:.8cqw;outline:1px dashed rgba(0,0,0,.2);outline-offset:-1px}
+.scene .cellbox.tg{outline:2px dashed var(--sel);outline-offset:-2px;background:rgba(224,137,43,.12)}
+.scene .sc.sel .card{box-shadow:0 0 0 .8cqw var(--sel);border-radius:4px}
+@keyframes caret{50%{opacity:0}}
+@media (max-width:600px){.top-grid{gap:10px}.mode-tile .lbl{padding:8px 10px 10px}.mode-tile .lbl b{font-size:16px}.mode-tile .lbl span{font-size:11px}}
+@media (prefers-reduced-motion: reduce){.scene *{animation:none!important}}
+
 /* login */
 #view-login{max-width:420px;margin:40px auto}
 #view-login .panel{padding:24px}
@@ -261,6 +298,7 @@ td.low{color:var(--danger);font-weight:700}
 <header class="top hidden" id="topbar">
   <div class="brand">ももふだ</div>
   <nav>
+    <button data-go="top">ホーム</button>
     <button data-go="home">練習する</button>
     <button data-go="mini">ミニゲーム</button>
     <button data-go="positions">定位置</button>
@@ -305,6 +343,12 @@ td.low{color:var(--danger);font-weight:700}
     <button id="btnGuest" style="width:100%">ゲスト（この端末のブラウザにだけ保存）</button>
     <p class="hint hidden" id="noFbNote">※ Firebase が未設定のため、いまはゲストモードのみ使えます。</p>
   </div>
+</section>
+
+<!-- ===== top（ホーム） ===== -->
+<section id="view-top" class="hidden">
+  <p class="hint top-hello">あそぶモードを選んでください（上のタブからも移動できます）。</p>
+  <div class="top-grid" id="topGrid"></div>
 </section>
 
 <!-- ===== home ===== -->
@@ -937,9 +981,10 @@ function show(name){
   }
   current = name;
   if (name!=="game") hideMiniResult();
-  for (const v of ["login","home","mini","game","positions","stats","battle","badges"]) $("#view-"+v).classList.toggle("hidden", v!==name);
+  for (const v of ["login","top","home","mini","game","positions","stats","battle","badges"]) $("#view-"+v).classList.toggle("hidden", v!==name);
   $("#topbar").classList.toggle("hidden", name==="login");
   $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go===(G&&G.mode==="battle"?"battle":G&&G.mode==="mini"?"mini":"home"))));
+  if (name==="top") renderTop();
   if (name==="home") refreshHome();
   if (name==="mini") renderMiniOpts();
   if (name==="positions") renderPositions();
@@ -957,7 +1002,7 @@ async function onLogin(){
   let retroDone = 1;
   try { const st = await Store.loadBadges(); badges = st.badges; retroDone = st.retro; } catch(e){ console.error(e); badges = {}; }
   updateBadgeNav();
-  show("home");
+  show("top");
   if (retroDone < BADGE_RETRO_VERSION) retroBadges().catch(e => console.error(e));
 }
 
@@ -2313,6 +2358,89 @@ async function retroBadges(){
   }
   if (current==="badges") renderBadges();
 }
+/* =========================================================
+   ホーム：各モードの入口（画像は実際の札の描画で組み立てたシーン）
+   ========================================================= */
+function scCard(scene, no, x, y, o={}){
+  const w = document.createElement("div"); w.className = "sc" + (o.sel ? " sel" : "");
+  w.style.left = x + "%"; w.style.top = y + "%"; if (o.cw) w.style.setProperty("--cw", o.cw + "cqw");
+  const c = {no, side: o.opp ? "opp" : "me", correct: null, km: false};
+  const el = cardEl(c, !o.back);
+  if (o.ok != null){
+    el.classList.add(o.ok ? "ok" : "ng");
+    const b = document.createElement("div"); b.className = "badge"; b.textContent = CARD[no].km; el.appendChild(b);
+  }
+  el.removeAttribute("title");
+  w.appendChild(el); scene.appendChild(w); return w;
+}
+function scEl(scene, cls, html, style){ const d = document.createElement("div"); d.className = cls; d.innerHTML = html; if (style) d.style.cssText = style; scene.appendChild(d); return d; }
+const TOP_MODES = [
+  {go:"home", name:"練習", sub:"50枚を暗記して、決まり字を入力。毎回記録されます", draw(S){
+    [3,13,23,33,43,53,63,73,83].forEach((x,i) => scCard(S, [12,31,45,66,8,90,23,54,70][i], x, 5, {back: i!==2 && i!==6, ok: i===2 || i===6 ? true : null}));
+    [8,18,28,38,58,68,78].forEach((x,i) => scCard(S, [3,17,40,88,61,29,95][i], x, 62, {back:true}));
+    scEl(S, "dlg", `<div class="t">自陣 下段 の札は？</div><div class="in">あきの</div><div class="bt"><i>わからない</i><i class="p">判定</i></div>`);
+  }},
+  {go:"mini", name:"ミニゲーム", sub:"条件に合う札だけを覚える短いゲーム", draw(S){
+    scEl(S, "chip", "娘、房干せ", "left:3%;top:4%");
+    [[4,50],[14,50],[80,50],[90,50],[4,78],[90,14]].forEach(([x,y],i) => scCard(S, [11,25,48,83,64,99][i], x, y, {back:true}));
+    scCard(S, 77, 30, 28, {cw:16, ok:true});
+    scCard(S, 57, 54, 28, {cw:16, ok:true});
+    scEl(S, "bubble", "せをはやみ", "left:38%;top:14%");
+    scEl(S, "bubble", "めぐりあひて", "left:62%;top:14%");
+    const cols = ["#e8b430","#d9534f","#2f8f6a","#3d7fd1","#e27aa6","#8c5bd1"];
+    [[24,8,20],[47,6,-30],[76,12,40],[27,80,60],[50,86,-15],[74,82,25],[20,40,-45],[80,36,10]].forEach(([x,y,r],i) =>
+      scEl(S, "dot", "", `left:${x}%;top:${y}%;background:${cols[i%cols.length]};transform:rotate(${r}deg)`));
+  }},
+  {go:"battle", name:"対戦", sub:"友達と同じ50枚で暗記勝負", draw(S){
+    [4,14,24,34,58,68,78,88].forEach((x,i) => scCard(S, [5,22,37,51,60,73,86,97][i], x, 3, {opp:true, cw:8.5}));
+    [4,14,24,34,58,68,78,88].forEach((x,i) => scCard(S, [2,19,33,47,62,77,81,94][i], x, 60, {cw:8.5}));
+    scEl(S, "chip", "ともだち", "right:3%;top:39%");
+    scEl(S, "chip", "あなた", "left:3%;top:45%");
+    scEl(S, "vs", "VS");
+  }},
+  {go:"positions", name:"定位置", sub:"自陣の札の定位置を登録", draw(S){
+    for (let r=0;r<3;r++) for (let c=0;c<10;c++){
+      const d = scEl(S, "cellbox" + (r===1 && c===4 ? " tg" : ""), "", `left:${3+c*9.6}%;top:${6+r*30}%`);
+    }
+    const put = [[0,0,1],[0,1,4],[0,9,15],[1,0,6],[1,9,21],[1,8,26],[2,0,33],[2,1,42],[2,2,49],[2,9,56],[2,8,63],[2,7,74]];
+    put.forEach(([r,c,no]) => scCard(S, no, 3+c*9.6, 6+r*30, {cw:8}));
+    scCard(S, 87, 3+6*9.6, 6+30, {cw:8, sel:true});
+    scEl(S, "chip", "タップして登録", "left:50%;bottom:3%;transform:translateX(-50%);font-size:3cqw");
+  }},
+  {go:"stats", name:"記録", sub:"暗記率の推移と札ごとの正答率", draw(S){
+    S.classList.add("plain");
+    const pts1 = [62,70,66,78,84,80,90,92], pts2 = [48,55,60,58,70,74,72,86];
+    const P = a => a.map((v,i)=>`${8+i*12},${58-(v-40)*0.9}`).join(" ");
+    scEl(S, "", `<svg viewBox="0 0 100 62.5" style="position:absolute;inset:0;width:100%;height:100%">
+      ${[20,32,44,56].map(y=>`<line x1="6" x2="96" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width=".3"/>`).join("")}
+      <polyline points="${P(pts2)}" fill="none" stroke="#c77b2e" stroke-width="1.2" stroke-linejoin="round"/>
+      <polyline points="${P(pts1)}" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/>
+      ${pts1.map((v,i)=>`<circle cx="${8+i*12}" cy="${58-(v-40)*0.9}" r="1.2" fill="var(--accent)"/>`).join("")}
+    </svg>`);
+    scEl(S, "chip", "自陣 92%", "left:4%;top:5%;color:var(--accent)");
+    scEl(S, "chip", "相手陣 86%", "left:30%;top:5%;color:#c77b2e");
+  }},
+  {go:"badges", name:"バッジ", sub:"条件を満たすと百人一首のバッジを獲得", draw(S){
+    S.classList.add("gold");
+    scEl(S, "rays", "");
+    [[18,22,-10,17],[41,12,0,77],[64,22,10,57]].forEach(([x,y,r,no]) => { const m = medalEl(no, true); m.style.left = x+"%"; m.style.top = y+"%"; m.style.transform = `rotate(${r}deg)`; S.appendChild(m); });
+  }},
+];
+function renderTop(){
+  const G_ = $("#topGrid"); if (G_.dataset.built) return;
+  G_.dataset.built = "1";
+  for (const m of TOP_MODES){
+    const b = document.createElement("button"); b.className = "mode-tile"; b.setAttribute("aria-label", m.name);
+    const S = document.createElement("div"); S.className = "scene"; S.setAttribute("aria-hidden","true");
+    b.appendChild(S);
+    const l = document.createElement("div"); l.className = "lbl"; l.innerHTML = `<b>${esc(m.name)}</b><span>${esc(m.sub)}</span>`; b.appendChild(l);
+    b.onclick = () => show(m.go);
+    G_.appendChild(b);
+    try { m.draw(S); } catch(e){ console.error(e); }
+  }
+}
+$(".brand").style.cursor = "pointer"; $(".brand").onclick = () => show("top");
+
 function renderBadges(){
   const n = ownedCount();
   $("#badgeProgress").innerHTML = `<div style="font-size:22px;font-weight:800">${n} <span class="hint" style="font-size:14px">/ 100 種類</span></div>
