@@ -82,36 +82,36 @@ h3{font-size:15px;margin:16px 0 8px}
 /* ホーム（各モードの入口） */
 .top-hello{margin:2px 0 12px}
 .top-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(160px,30%),1fr));gap:14px;max-width:1100px}
-.mode-tile{padding:0;border-radius:14px;overflow:hidden;text-align:left;display:flex;flex-direction:column;background:var(--panel);transition:transform .15s,box-shadow .15s}
+.mode-tile{cursor:pointer;border:1px solid var(--line);color:var(--ink);padding:0;border-radius:14px;overflow:hidden;text-align:left;display:flex;flex-direction:column;background:var(--panel);transition:transform .15s,box-shadow .15s}
 .mode-tile:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.14)}
 .mode-tile:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .mode-tile .lbl{padding:10px 14px 12px;border-top:1px solid var(--line)}
 .mode-tile .lbl b{display:block;font-size:19px;font-family:"Shippori Mincho B1",serif;font-weight:800}
 .mode-tile .lbl span{font-size:12.5px;color:var(--muted)}
-.scene{position:relative;aspect-ratio:16/10;container-type:inline-size;overflow:hidden;pointer-events:none;
+.scene{position:relative;width:100%;aspect-ratio:16/10;--u:2.5px;overflow:hidden;pointer-events:none;
   background:repeating-linear-gradient(90deg,var(--tatami) 0 6px,var(--tatami2) 6px 8px)}
 .scene.plain{background:var(--bg)}
-.scene .sc{position:absolute;--cw:9cqw;width:var(--cw);height:calc(var(--cw)*1.38)}
+.scene .sc{position:absolute;--cw:calc(var(--u) * 9);width:var(--cw);height:calc(var(--cw)*1.38)}
 .scene .sc .card{cursor:inherit}
-.scene .chip{position:absolute;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:.6cqw 2.4cqw;font-size:3.4cqw;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.15)}
-.scene .dlg{position:absolute;left:17%;right:17%;top:34%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:3cqw;padding:3cqw 3.4cqw;box-shadow:0 2cqw 5cqw rgba(0,0,0,.3);font-size:3.3cqw}
-.scene .dlg .t{font-weight:800;font-size:3.8cqw}
-.scene .dlg .in{margin:2cqw 0;border:2px solid var(--accent);border-radius:1.6cqw;padding:1.2cqw 2cqw;font-size:4.6cqw;font-weight:700;letter-spacing:.1em}
-.scene .dlg .in::after{content:"";display:inline-block;width:2px;height:4.4cqw;background:var(--ink);vertical-align:-0.6cqw;margin-left:1px;animation:caret 1s steps(1) infinite}
-.scene .dlg .bt{display:flex;justify-content:flex-end;gap:1.6cqw}
-.scene .dlg .bt i{font-style:normal;border:1px solid var(--line);border-radius:1.6cqw;padding:.8cqw 2.4cqw}
+.scene .chip{position:absolute;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:calc(var(--u) * .6) calc(var(--u) * 2.4);font-size:calc(var(--u) * 3.4);font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.scene .dlg{position:absolute;left:17%;right:17%;top:34%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:calc(var(--u) * 3);padding:calc(var(--u) * 3) calc(var(--u) * 3.4);box-shadow:0 calc(var(--u) * 2) calc(var(--u) * 5) rgba(0,0,0,.3);font-size:calc(var(--u) * 3.3)}
+.scene .dlg .t{font-weight:800;font-size:calc(var(--u) * 3.8)}
+.scene .dlg .in{margin:calc(var(--u) * 2) 0;border:2px solid var(--accent);border-radius:calc(var(--u) * 1.6);padding:calc(var(--u) * 1.2) calc(var(--u) * 2);font-size:calc(var(--u) * 4.6);font-weight:700;letter-spacing:.1em}
+.scene .dlg .in::after{content:"";display:inline-block;width:2px;height:calc(var(--u) * 4.4);background:var(--ink);vertical-align:calc(var(--u) * -0.6);margin-left:1px;animation:caret 1s steps(1) infinite}
+.scene .dlg .bt{display:flex;justify-content:flex-end;gap:calc(var(--u) * 1.6)}
+.scene .dlg .bt i{font-style:normal;border:1px solid var(--line);border-radius:calc(var(--u) * 1.6);padding:calc(var(--u) * .8) calc(var(--u) * 2.4)}
 .scene .dlg .bt i.p{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
-.scene .bubble{position:absolute;transform:translateX(-50%);background:#fffbe8;color:#5a3d00;border:1px solid #d9a531;border-radius:2cqw;padding:.5cqw 1.8cqw;font-size:3.2cqw;font-weight:800;white-space:nowrap;font-family:"Shippori Mincho B1",serif}
-.scene .dot{position:absolute;width:1.8cqw;height:2.6cqw;border-radius:.4cqw}
-.scene .vs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:"Shippori Mincho B1",serif;font-weight:800;font-size:9cqw;color:#fff;text-shadow:0 0 2cqw rgba(0,0,0,.6),0 .5cqw 1cqw rgba(0,0,0,.5)}
+.scene .bubble{position:absolute;transform:translateX(-50%);background:#fffbe8;color:#5a3d00;border:1px solid #d9a531;border-radius:calc(var(--u) * 2);padding:calc(var(--u) * .5) calc(var(--u) * 1.8);font-size:calc(var(--u) * 3.2);font-weight:800;white-space:nowrap;font-family:"Shippori Mincho B1",serif}
+.scene .dot{position:absolute;width:calc(var(--u) * 1.8);height:calc(var(--u) * 2.6);border-radius:calc(var(--u) * .4)}
+.scene .vs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:"Shippori Mincho B1",serif;font-weight:800;font-size:calc(var(--u) * 9);color:#fff;text-shadow:0 0 calc(var(--u) * 2) rgba(0,0,0,.6),0 calc(var(--u) * .5) calc(var(--u) * 1) rgba(0,0,0,.5)}
 .scene.gold{background:radial-gradient(ellipse at center,#5b4518 0%,#2a1f0b 75%)}
-.scene .rays{position:absolute;left:50%;top:50%;width:150cqw;height:150cqw;margin:-75cqw 0 0 -75cqw;border-radius:50%;
+.scene .rays{position:absolute;left:50%;top:50%;width:calc(var(--u) * 150);height:calc(var(--u) * 150);margin:calc(var(--u) * -75) 0 0 calc(var(--u) * -75);border-radius:50%;
   background:repeating-conic-gradient(from 0deg,rgba(255,226,150,.28) 0deg 4deg,rgba(255,226,150,0) 9deg 18deg)}
-.scene .medal{position:absolute;--cw:13cqw;padding:1.6cqw;border-radius:2.4cqw}
-.scene .medal .no{font-size:2.6cqw}
-.scene .cellbox{position:absolute;--cw:8cqw;width:var(--cw);height:calc(var(--cw)*1.38);border-radius:.8cqw;outline:1px dashed rgba(0,0,0,.2);outline-offset:-1px}
+.scene .medal{position:absolute;--cw:calc(var(--u) * 13);padding:calc(var(--u) * 1.6);border-radius:calc(var(--u) * 2.4)}
+.scene .medal .no{font-size:calc(var(--u) * 2.6)}
+.scene .cellbox{position:absolute;--cw:calc(var(--u) * 8);width:var(--cw);height:calc(var(--cw)*1.38);border-radius:calc(var(--u) * .8);outline:1px dashed rgba(0,0,0,.2);outline-offset:-1px}
 .scene .cellbox.tg{outline:2px dashed var(--sel);outline-offset:-2px;background:rgba(224,137,43,.12)}
-.scene .sc.sel .card{box-shadow:0 0 0 .8cqw var(--sel);border-radius:4px}
+.scene .sc.sel .card{box-shadow:0 0 0 calc(var(--u) * .8) var(--sel);border-radius:4px}
 @keyframes caret{50%{opacity:0}}
 @media (max-width:600px){.top-grid{gap:10px}.mode-tile .lbl{padding:8px 10px 10px}.mode-tile .lbl b{font-size:16px}.mode-tile .lbl span{font-size:11px}}
 @media (prefers-reduced-motion: reduce){.scene *{animation:none!important}}
@@ -984,7 +984,7 @@ function show(name){
   for (const v of ["login","top","home","mini","game","positions","stats","battle","badges"]) $("#view-"+v).classList.toggle("hidden", v!==name);
   $("#topbar").classList.toggle("hidden", name==="login");
   $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go===(G&&G.mode==="battle"?"battle":G&&G.mode==="mini"?"mini":"home"))));
-  if (name==="top") renderTop();
+  if (name==="top") { renderTop(); requestAnimationFrame(sizeScenes); }
   if (name==="home") refreshHome();
   if (name==="mini") renderMiniOpts();
   if (name==="positions") renderPositions();
@@ -2363,7 +2363,7 @@ async function retroBadges(){
    ========================================================= */
 function scCard(scene, no, x, y, o={}){
   const w = document.createElement("div"); w.className = "sc" + (o.sel ? " sel" : "");
-  w.style.left = x + "%"; w.style.top = y + "%"; if (o.cw) w.style.setProperty("--cw", o.cw + "cqw");
+  w.style.left = x + "%"; w.style.top = y + "%"; if (o.cw) w.style.setProperty("--cw", `calc(var(--u) * ${o.cw})`);
   const c = {no, side: o.opp ? "opp" : "me", correct: null, km: false};
   const el = cardEl(c, !o.back);
   if (o.ok != null){
@@ -2405,7 +2405,7 @@ const TOP_MODES = [
     const put = [[0,0,1],[0,1,4],[0,9,15],[1,0,6],[1,9,21],[1,8,26],[2,0,33],[2,1,42],[2,2,49],[2,9,56],[2,8,63],[2,7,74]];
     put.forEach(([r,c,no]) => scCard(S, no, 3+c*9.6, 6+r*30, {cw:8}));
     scCard(S, 87, 3+6*9.6, 6+30, {cw:8, sel:true});
-    scEl(S, "chip", "タップして登録", "left:50%;bottom:3%;transform:translateX(-50%);font-size:3cqw");
+    scEl(S, "chip", "タップして登録", "left:50%;bottom:3%;transform:translateX(-50%);font-size:calc(var(--u) * 3)");
   }},
   {go:"stats", name:"記録", sub:"暗記率の推移と札ごとの正答率", draw(S){
     S.classList.add("plain");
@@ -2430,7 +2430,8 @@ function renderTop(){
   const G_ = $("#topGrid"); if (G_.dataset.built) return;
   G_.dataset.built = "1";
   for (const m of TOP_MODES){
-    const b = document.createElement("button"); b.className = "mode-tile"; b.setAttribute("aria-label", m.name);
+    const b = document.createElement("div"); b.className = "mode-tile"; b.setAttribute("role","button"); b.tabIndex = 0; b.setAttribute("aria-label", m.name);
+    b.onkeydown = e => { if (e.key==="Enter" || e.key===" "){ e.preventDefault(); show(m.go); } };
     const S = document.createElement("div"); S.className = "scene"; S.setAttribute("aria-hidden","true");
     b.appendChild(S);
     const l = document.createElement("div"); l.className = "lbl"; l.innerHTML = `<b>${esc(m.name)}</b><span>${esc(m.sub)}</span>`; b.appendChild(l);
@@ -2438,7 +2439,13 @@ function renderTop(){
     G_.appendChild(b);
     try { m.draw(S); } catch(e){ console.error(e); }
   }
+  sizeScenes();
 }
+// 画像の中の大きさは「画像の幅の1%」を単位（--u）にして決める（Safari でも同じ見た目になるよう、幅を測って設定）
+function sizeScenes(){
+  for (const S of $$(".scene")){ const w = S.getBoundingClientRect().width; if (w){ S.style.setProperty("--u", (w/100) + "px"); S.style.height = (w*0.625) + "px"; } }
+}
+window.addEventListener("resize", () => { if (current==="top") sizeScenes(); });
 $(".brand").style.cursor = "pointer"; $(".brand").onclick = () => show("top");
 
 function renderBadges(){
