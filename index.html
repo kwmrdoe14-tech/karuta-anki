@@ -361,7 +361,7 @@ td.low{color:var(--danger);font-weight:700}
     <h3>ゲーム</h3>
     <div class="mini-list" id="miniList"></div>
     <h3>暗記時間</h3>
-    <div class="seg" id="miniTime"><button data-t="60" class="on">1分</button><button data-t="120">2分</button><button data-t="180">3分</button></div>
+    <div class="seg" id="miniTime"><button data-t="30">30秒</button><button data-t="60" class="on">1分</button><button data-t="120">2分</button><button data-t="180">3分</button></div>
     <h3>自陣の並べ方</h3>
     <label class="row"><input type="checkbox" id="miniUseFixed" checked> 登録した定位置を使う</label>
     <div class="row" style="margin-top:18px">
@@ -1042,7 +1042,7 @@ for (const m of MINI){
 let miniKey = MINI[0].key, miniSec = 60;
 try { miniKey = localStorage.getItem("ka_mini") || miniKey; miniSec = +localStorage.getItem("ka_miniSec") || miniSec; } catch(e){}
 if (!MINI.some(m=>m.key===miniKey)) miniKey = MINI[0].key;
-if (![60,120,180].includes(miniSec)) miniSec = 60;
+if (![30,60,120,180].includes(miniSec)) miniSec = 60;
 const miniOf = k => MINI.find(m=>m.key===k);
 function renderMiniOpts(){
   const L = $("#miniList"); L.innerHTML = "";
@@ -1243,7 +1243,7 @@ function startMemorize(){
 function tick(){
   const rem = (G.endAt - Date.now())/1000;
   $("#timer").textContent = fmtTime(Math.ceil(rem));
-  $("#timer").classList.toggle("low", rem <= 60);
+  $("#timer").classList.toggle("low", rem <= Math.min(60, G.setSec/3));   // 短い暗記時間でも最初から赤くならないように
   if (rem <= 0){ beep(); endMemorize(); }
 }
 function endMemorize(){
