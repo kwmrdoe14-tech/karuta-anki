@@ -311,12 +311,7 @@ td.low{color:var(--danger);font-weight:700}
 <section id="view-home" class="hidden">
   <div class="panel">
     <h2>新しく札を配る</h2>
-    <h3>モード</h3>
-    <div class="seg" id="modeSeg">
-      <button data-mode="practice" class="on">練習</button>
-      <button data-mode="record">記録</button>
-    </div>
-    <p class="hint" id="modeHint">札を開けていくだけ。頭の中で思い出して確認します（記録は残りません）。</p>
+    <p class="hint">開けた札の上の句を入力して判定します。暗記時間・自陣と相手陣の暗記率は毎回「記録」タブに保存されます。</p>
 
     <h3>暗記時間（最大15分）</h3>
     <div class="row">
@@ -348,7 +343,7 @@ td.low{color:var(--danger);font-weight:700}
       <li>自陣は定位置の段・左右・並び順を守って、端から詰めて並びます。札をタップ → 移動先をタップで入れ替え・移動できます。</li>
       <li>札が配られるとすぐに暗記のタイマーが始まります。途中で「終了して裏返す」も可能です。</li>
       <li>全ての札が裏返ったら、好きな札をタップして開けていきます。</li>
-      <li>記録モードでは、上の句をひらがなで入力（決まり字まで合っていれば正解）。歌番号でも可。</li>
+      <li>上の句をひらがなで入力（決まり字まで合っていれば正解）。歌番号でも可。結果は毎回記録されます。</li>
     </ol>
   </div>
 </section>
@@ -1013,14 +1008,7 @@ $("#btnEmailSignup").onclick = async () => {
 /* =========================================================
    ホーム
    ========================================================= */
-let mode = "practice";
-$$("#modeSeg button").forEach(b => b.onclick = () => {
-  mode = b.dataset.mode;
-  $$("#modeSeg button").forEach(x => x.classList.toggle("on", x===b));
-  $("#modeHint").textContent = mode==="practice"
-    ? "札を開けていくだけ。頭の中で思い出して確認します（記録は残りません）。"
-    : "開けた札の上の句を入力して判定。暗記時間・自陣と相手陣の暗記率を記録します。";
-});
+const mode = "record";   // 練習タブは毎回記録する（以前の「練習」モードは廃止）
 
 /* ---------- ミニゲーム ---------- */
 const MINI = [
@@ -1194,7 +1182,7 @@ $("#btnMiniDeal").onclick = () => startDeal(true);
 function renderGame(){
   if (G.mode==="battle") return renderBattleGame();
   const P = G.phase;
-  $("#phaseLabel").textContent = {arrange:"配置の確認", memorize:"暗記中", recall:"答え合わせ", result:"結果"}[P] + (G.mode==="mini" ? `（${miniOf(G.mini).name}）` : G.mode==="record"?"（記録）":"（練習）");
+  $("#phaseLabel").textContent = {arrange:"配置の確認", memorize:"暗記中", recall:"答え合わせ", result:"結果"}[P] + (G.mode==="mini" ? `（${miniOf(G.mini).name}）` : "");
   const tapHint = {flip:"札をタップすると裏返ります（もう一度タップで表に戻ります）。", kimari:"札をタップすると決まり字が赤字で表示されます（もう一度タップで消えます）。"}[G.tapMode];
   const hint = {
     arrange: (G.mode==="mini" ? `50枚の中から ${miniOf(G.mini).desc} だけを覚えます。` : "") + (tapHint || "自陣の札をタップ → 移動先のマス（または別の札）をタップで移動・入れ替え。準備ができたら「暗記開始」。"),
@@ -1694,7 +1682,7 @@ function drawSummary(){
 function drawChart(){
   const box = $("#chartBox");
   const list = subset($("#chartRange").value).slice().reverse();
-  if (list.length < 1){ box.innerHTML = `<p class="hint">記録モードで練習すると、ここに推移が表示されます。</p>`; return; }
+  if (list.length < 1){ box.innerHTML = `<p class="hint">「練習する」タブで遊ぶと、ここに推移が表示されます。</p>`; return; }
   const W = Math.max(320, box.clientWidth || 600), H = 240, m = {l:40,r:16,t:12,b:28};
   const iw = W-m.l-m.r, ih = H-m.t-m.b;
   const x = i => m.l + (list.length===1 ? iw/2 : i*iw/(list.length-1));
