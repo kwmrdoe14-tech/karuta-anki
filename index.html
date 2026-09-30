@@ -533,6 +533,7 @@ td.low{color:var(--danger);font-weight:700}
 <section id="view-stats" class="hidden">
   <div class="panel">
     <h2>記録</h2>
+    <h3 style="margin-top:0">札開け</h3>
     <table id="summaryTable"></table>
     <div class="row" style="margin-top:10px">
       <span>過去</span><input type="number" id="nCount" class="inline-num" min="1" value="10"><span>回</span>
@@ -542,7 +543,13 @@ td.low{color:var(--danger);font-weight:700}
     <p class="hint">暗記時間は、実際に暗記に使った時間（途中で終了した場合はその時間）です。</p>
   </div>
   <div class="panel">
-    <h3 style="margin-top:0">推移</h3>
+    <h3 style="margin-top:0">100本ノック・50本ノック</h3>
+    <table id="knockSummary"></table>
+    <p class="hint">「過去N回」「過去N期間」のNは、上の集計欄の数字を使います。2ミス以内でバッジ獲得。</p>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto;margin-top:8px"><table id="knockHistory"></table></div>
+  </div>
+  <div class="panel">
+    <h3 style="margin-top:0">推移（札開け）</h3>
     <div class="row" style="margin-bottom:6px">
       <span class="hint">表示範囲</span>
       <select id="chartRange"><option value="all">全期間</option><option value="count">過去N回</option><option value="period">過去N期間</option></select>
@@ -562,7 +569,7 @@ td.low{color:var(--danger);font-weight:700}
     <div style="overflow-x:auto;max-height:560px;overflow-y:auto"><table id="perCardTable"></table></div>
   </div>
   <div class="panel">
-    <h3 style="margin-top:0">全ての記録</h3>
+    <h3 style="margin-top:0">全ての記録（札開け）</h3>
     <div style="overflow-x:auto"><table id="historyTable"></table></div>
   </div>
 </section>
@@ -957,6 +964,23 @@ const Store = {
     }
     const {collection,addDoc} = fb.fs;
     await addDoc(collection(fb.db,"users",user.uid,"records"), r);
+  },
+  // 100本ノック・50本ノックの記録（users/{uid}/knocks、ゲストは ka_knocks）
+  async listKnocks(){
+    if (user.guest) return JSON.parse(localStorage.getItem("ka_knocks")||"[]");
+    const {collection,getDocs,query,orderBy} = fb.fs;
+    const snap = await getDocs(query(collection(fb.db,"users",user.uid,"knocks"), orderBy("createdAt","desc")));
+    return snap.docs.map(d => ({id:d.id, ...d.data()}));
+  },
+  async addKnock(r){
+    if (user.guest){ const list = JSON.parse(localStorage.getItem("ka_knocks")||"[]"); r.id = "k"+Date.now(); list.unshift(r); localStorage.setItem("ka_knocks", JSON.stringify(list)); return; }
+    const {collection,addDoc} = fb.fs;
+    await addDoc(collection(fb.db,"users",user.uid,"knocks"), r);
+  },
+  async deleteKnock(id){
+    if (user.guest){ localStorage.setItem("ka_knocks", JSON.stringify(JSON.parse(localStorage.getItem("ka_knocks")||"[]").filter(r=>r.id!==id))); return; }
+    const {doc,deleteDoc} = fb.fs;
+    await deleteDoc(doc(fb.db,"users",user.uid,"knocks",id));
   },
   async deleteRecord(id){
     if (user.guest) {
@@ -1584,7 +1608,12 @@ function finishKnock(){
     <div><div class="hint">暗記時間</div><div class="big">${fmtTime(G.usedSec)}</div></div>
     <div><div class="hint">回答時間</div><div class="big">${fmtTime(G.recallSec||0)}</div></div></div>
     ${G.kMisses.length ? `<h3>ミスした札</h3><p style="margin:4px 0">${G.kMisses.map(m=>`<span style="white-space:nowrap">${esc(CARD[m.no].km)}<span class="hint">（${esc(m.why)}）</span></span>`).join("　")}</p>` : `<p><b>ノーミス！</b></p>`}
-    <p class="hint">2ミス以内でバッジ獲得（100本ノックは新しいバッジ確定、50本ノックはランダム）。ノックの結果は「記録」タブには保存されません。</p>`;
+    <p class="hint">2ミス以内でバッジ獲得（100本ノックは新しいバッジ確定、50本ノックはランダム）。<span id="knockSave">保存中…</span></p>`;
+  const rec = {createdAt: Date.now(), knock: G.knock, setSec: G.setSec, memorizeSec: G.usedSec, answerSec: G.recallSec || 0,
+    ok: G.kOk, total, miss: G.kMiss, misses: G.kMisses.map(m=>({no:m.no, why:m.why}))};
+  if (!G.kSaved){ G.kSaved = true;
+    Store.addKnock(rec).then(() => { const e=$("#knockSave"); if (e) e.textContent = "記録を保存しました（「記録」タブで見られます）。"; })
+      .catch(e => { console.error(e); const x=$("#knockSave"); if (x) x.textContent = "保存に失敗しました：" + e.message; }); }
   if (!G.awarded && G.kMiss <= 2){
     G.awarded = true;
     awardBadge(G.knock===100 ? {kind:"new", why:`100本ノックを${G.kMiss}ミスでクリア`} : {kind:"random", why:`50本ノックを${G.kMiss}ミスでクリア`});
@@ -1748,6 +1777,41 @@ async function renderStats(){
   try { battles = await Store.listBattles(); } catch(e){ console.error(e); battles = []; }
   battles.forEach(rescoreSaved);
   drawSummary(); drawChart(); drawHistory(); drawPerCard();
+  try { knocks = await Store.listKnocks(); } catch(e){ console.error(e); knocks = []; }
+  knocks.sort((a,b)=>b.createdAt-a.createdAt);
+  drawKnocks();
+}
+let knocks = [];
+function drawKnocks(){
+  const n = +$("#nCount").value||1, p = +$("#nPeriod").value||1, u = {day:"日",week:"週",month:"か月"}[$("#nUnit").value];
+  const since = periodStart(p, $("#nUnit").value);
+  let h = `<tr><th></th><th></th><th class="num">回数</th><th class="num">平均ミス</th><th class="num">最少ミス</th><th class="num">2ミス以内</th><th class="num">平均回答時間</th></tr>`;
+  for (const k of [100, 50]){
+    const all = knocks.filter(r=>r.knock===k);
+    const rows = [["全期間", all], [`過去${n}回`, all.slice(0,n)], [`過去${p}${u}`, all.filter(r=>r.createdAt>=since)]];
+    rows.forEach(([label, list], i) => {
+      const head = i===0 ? `<td rowspan="3"><b>${k}本ノック</b></td>` : "";
+      if (!list.length){ h += `<tr>${head}<td>${label}</td><td class="num">0</td><td class="num hint" colspan="4">記録なし</td></tr>`; return; }
+      const miss = list.map(r=>r.miss), mean = a => a.reduce((x,y)=>x+y,0)/a.length;
+      h += `<tr>${head}<td>${label}</td><td class="num">${list.length}</td><td class="num">${Math.round(mean(miss)*10)/10}</td><td class="num">${Math.min(...miss)}</td>
+        <td class="num">${list.filter(r=>r.miss<=2).length}回</td><td class="num">${fmtTime(mean(list.map(r=>r.answerSec||0)))}</td></tr>`;
+    });
+  }
+  $("#knockSummary").innerHTML = h;
+  const T = $("#knockHistory");
+  if (!knocks.length){ T.innerHTML = `<tr><td class="hint">まだノックの記録がありません。</td></tr>`; return; }
+  let t = `<tr><th>日時</th><th>種類</th><th class="num">暗記時間</th><th class="num">正解</th><th class="num">ミス</th><th class="num">回答時間</th><th>ミスした札</th><th></th></tr>`;
+  for (const r of knocks){
+    t += `<tr><td>${fmtDate(r.createdAt)}</td><td>${r.knock}本</td><td class="num">${fmtTime(r.memorizeSec)}</td><td class="num">${r.ok}/${r.total}</td>
+      <td class="num"${r.miss<=2 ? ' style="color:var(--ok);font-weight:700"' : ""}>${r.miss}</td><td class="num">${fmtTime(r.answerSec||0)}</td>
+      <td class="hint">${(r.misses||[]).map(m=>esc(CARD[m.no] ? CARD[m.no].km : m.no)).join("・")}</td>
+      <td class="num"><button class="ghost danger" data-kdel="${esc(r.id)}" style="padding:2px 8px;font-size:12px">削除</button></td></tr>`;
+  }
+  T.innerHTML = t;
+  T.querySelectorAll("[data-kdel]").forEach(b => b.onclick = async () => {
+    if (!confirm("このノックの記録を削除しますか？")) return;
+    try { await Store.deleteKnock(b.dataset.kdel); knocks = knocks.filter(r=>r.id!==b.dataset.kdel); drawKnocks(); } catch(e){ toast("削除に失敗しました"); }
+  });
 }
 let battles = [];
 // 保存済みの記録を、今の採点ルール（盤面全体で採点）で採点し直す。以前の記録にも同じ基準を当てる
@@ -1832,7 +1896,7 @@ function drawSummary(){
   }
   $("#summaryTable").innerHTML = h;
 }
-["#nCount","#nPeriod","#nUnit","#chartRange"].forEach(s => $(s).addEventListener("input", () => { drawSummary(); drawChart(); drawPerCard(); }));
+["#nCount","#nPeriod","#nUnit","#chartRange"].forEach(s => $(s).addEventListener("input", () => { drawSummary(); drawChart(); drawPerCard(); drawKnocks(); }));
 
 function drawChart(){
   const box = $("#chartBox");
