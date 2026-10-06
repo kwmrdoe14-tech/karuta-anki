@@ -128,6 +128,31 @@ h3{font-size:15px;margin:16px 0 8px}
 .card.opp.flash-ng{animation:none}
 @media (max-width:600px){.knock .q{font-size:26px}.knock .kara{padding:8px 16px}}
 
+/* 100枚山手線ゲーム */
+.yama-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.yama-head .vs{font-weight:700}
+.yama-head .cnt{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.ystatus{font-family:"Shippori Mincho B1",serif;font-weight:800;font-size:28px;margin:14px 0 6px;min-height:1.3em}
+.ystatus.me{color:var(--accent)} .ystatus.opp{color:var(--ink2)}
+.ybar{position:relative;height:12px;border-radius:6px;background:var(--line);overflow:hidden}
+.ybar i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:6px;width:100%}
+.ybar.low i{background:var(--danger)}
+.ysec{font-variant-numeric:tabular-nums;font-weight:800;font-size:18px;min-width:3em;text-align:right}
+.yform{display:flex;gap:8px;margin-top:14px}
+.yform input{flex:1;min-width:0;font-size:22px;padding:10px 14px;letter-spacing:.06em}
+.yform button{font-size:17px;padding:10px 20px;white-space:nowrap;flex:none}
+.ylast{margin-top:12px;min-height:1.6em;font-size:16px}
+.ylast b{font-family:"Shippori Mincho B1",serif;font-size:22px}
+.yres{margin-top:14px;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg)}
+.yres .big{font-family:"Shippori Mincho B1",serif;font-weight:800;font-size:30px}
+.yres.win .big{color:#b8860b} .yres.lose .big{color:var(--danger)}
+.yhist{display:flex;flex-wrap:wrap;gap:6px}
+.yhist span{border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:14px;background:var(--panel);white-space:nowrap}
+.yhist span.me{border-color:var(--accent);color:var(--accent)}
+.yhist span i{font-style:normal;font-size:11px;color:var(--muted);margin-left:4px}
+.yhist.done span{cursor:pointer}
+.roomline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+
 /* login */
 #view-login{max-width:420px;margin:40px auto}
 #view-login .panel{padding:24px}
@@ -415,6 +440,7 @@ td.low{color:var(--danger);font-weight:700}
 <section id="view-mini" class="hidden">
   <div class="panel">
     <h2>ミニゲーム</h2>
+    <p style="margin:0 0 6px"><a href="#yamaPanel" id="lnkYama">▶ 100枚山手線ゲーム（コンピュータ・友達と対戦）はこちら</a></p>
     <p class="hint">ふつうの50枚の盤面から、条件に合う札だけを覚えて、その札だけ答えます。判定は「記録」「対戦」と同じ。答え終わったら「回答を終了」で正解率が出ます（結果は保存されません）。</p>
     <h3>ゲーム</h3>
     <div class="mini-list" id="miniList"></div>
@@ -425,6 +451,39 @@ td.low{color:var(--danger);font-weight:700}
     <div class="row" style="margin-top:18px">
       <button class="primary" id="btnMiniDeal" style="padding:12px 28px;font-size:17px">札を配る</button>
     </div>
+  </div>
+  <div class="panel" id="yamaPanel">
+    <h2>100枚山手線ゲーム</h2>
+    <p class="hint">百人一首の決まり字を交互に言っていくゲームです。同じ札は2回言えません。決まり字は札が出るたびに変わります（例：「かぜそ」が出たあとは「かぜを」ではなく「かぜ」）。今の決まり字ぴったりで答えてください。仮名遣いは「札開け」と同じく、歴史的・現代どちらでもOKです。<br>コンピュータ対戦：コンピュータは間違えません。2人で100枚言い切ればクリア、あなたが間違えるか時間切れで失敗。<br>友達と対戦：先に間違えたか時間切れになった方の負け。</p>
+    <h3>対戦相手</h3>
+    <div class="seg" id="yamaOpp"><button data-o="cpu" class="on">コンピュータ</button><button data-o="friend">友達</button></div>
+    <h3>持ち時間（1回ごと）</h3>
+    <div class="seg" id="yamaCd"><button data-c="3">3秒</button><button data-c="5" class="on">5秒</button><button data-c="7">7秒</button><button data-c="10">10秒</button></div>
+    <div id="yamaCpuBox" class="row" style="margin-top:18px">
+      <button class="primary" id="btnYamaCpu" style="padding:12px 28px;font-size:17px">はじめる</button>
+    </div>
+    <div id="yamaFriendBox" class="hidden" style="margin-top:14px">
+      <p class="hint hidden" id="yamaNeedLogin">友達との対戦はログインが必要です（ゲストでは遊べません）。</p>
+      <div class="roomline"><button class="primary" id="btnYamaCreate">部屋を作る</button><span class="hint">6桁のコードを友達に伝えます</span></div>
+      <div class="roomline"><input id="yamaCode" inputmode="numeric" maxlength="6" placeholder="6桁の部屋コード" style="width:160px"><button id="btnYamaJoin">部屋に入る</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 100枚山手線ゲーム ===== -->
+<section id="view-yama" class="hidden">
+  <div class="panel">
+    <div class="yama-head"><b>100枚山手線ゲーム</b><span class="vs" id="yVs"></span><span class="hint" id="yCdLabel"></span><span class="cnt" id="yCount"></span></div>
+    <div class="ystatus" id="yStatus"></div>
+    <div class="row" style="gap:10px;flex-wrap:nowrap"><div class="ybar" id="yBarBox" style="flex:1"><i id="yBar"></i></div><span class="ysec" id="ySec"></span></div>
+    <form class="yform" id="yForm" autocomplete="off"><input id="yInput" placeholder="決まり字を入力" autocapitalize="off" spellcheck="false" enterkeyhint="send"><button class="primary" id="ySend">送信</button></form>
+    <div class="ylast" id="yLast"></div>
+    <div id="yResult"></div>
+    <div class="row" style="margin-top:12px" id="yBtns"></div>
+  </div>
+  <div class="panel">
+    <h3 style="margin-top:0">出た札 <span class="hint" id="yHistNote"></span></h3>
+    <div class="yhist" id="yHist"></div>
   </div>
 </section>
 
@@ -1023,11 +1082,16 @@ function show(name){
       stopTimer(); G=null;
     }
   }
+  if (current==="yama" && name!=="yama" && Y){
+    if (Y.status==="play" || Y.status==="countdown"){ if (!confirm("ゲームをやめますか？（友達との対戦では負けになります）")) return; }
+    leaveYama();
+  }
   current = name;
+  if (name==="mini") renderYamaOpts();
   if (name!=="game"){ hideMiniResult(); $("#knockBar").classList.add("hidden"); }
-  for (const v of ["login","top","home","mini","game","positions","stats","battle","badges"]) $("#view-"+v).classList.toggle("hidden", v!==name);
+  for (const v of ["login","top","home","mini","yama","game","positions","stats","battle","badges"]) $("#view-"+v).classList.toggle("hidden", v!==name);
   $("#topbar").classList.toggle("hidden", name==="login");
-  $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go===(G&&G.mode==="battle"?"battle":G&&G.mode==="mini"?"mini":"home"))));
+  $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go===(G&&G.mode==="battle"?"battle":G&&G.mode==="mini"?"mini":"home")) || (name==="yama" && b.dataset.go==="mini")));
   if (name==="top") { renderTop(); requestAnimationFrame(sizeScenes); }
   if (name==="home") refreshHome();
   if (name==="mini") renderMiniOpts();
@@ -2533,6 +2597,283 @@ async function retroBadges(){
   if (current==="badges") renderBadges();
 }
 /* =========================================================
+   100枚山手線ゲーム
+   決まり字は「まだ出ていない札」の中で、ほかの札と区別できる最短の長さ（札が出るたびに短くなる）。
+   比べるのは読み（norm で歴史的仮名遣い・を/お 等をそろえた形）。44「あふこ」は「おおこ」として扱う。
+   ========================================================= */
+const Y_RAW = {}, Y_KEY = {};
+for (const [no,kami] of POEMS){ Y_RAW[no] = kami.replace(/\s/g,""); Y_KEY[no] = no===44 ? "おお" + norm(Y_RAW[no]).slice(2) : norm(Y_RAW[no]); }
+const unDakuY = t => t.normalize("NFD").replace(/[゙゚]/g,"").normalize("NFC");
+function yKms(rem){                 // rem: 残っている札番号の配列 → {札番号: 決まり字の長さ}
+  const o = {};
+  for (const a of rem){ const ka = Y_KEY[a]; let L = 1;
+    for (const b of rem){ if (b===a) continue; const kb = Y_KEY[b]; let i = 0; while (i<ka.length && ka[i]===kb[i]) i++; if (i+1 > L) L = i+1; }
+    o[a] = Math.min(L, ka.length); }
+  return o;
+}
+const yForms = (no, L) => { const f = [Y_KEY[no].slice(0,L), norm(Y_RAW[no]).slice(0,L)]; if (no===44) f.push(norm("おうことの").slice(0,L)); return [...new Set(f)]; };
+const yShow = (no, L) => Y_RAW[no].slice(0, L);      // 表示は歴史的仮名遣い（例：かぜを）
+const ALL_NOS = POEMS.map(p=>p[0]);
+// 入力を判定する。used: 出た札の配列
+function yJudge(input, used){
+  const n = norm(input||""); const usedSet = new Set(used);
+  const rem = ALL_NOS.filter(x=>!usedSet.has(x)); const L = yKms(rem);
+  if (!n) return {ok:false, reason:"何も入力されていません"};
+  for (const c of rem) if (yForms(c, L[c]).includes(n)) return {ok:true, no:c, L:L[c]};
+  const long = rem.find(c => n.length > L[c] && yForms(c, n.length).includes(n));
+  if (long) return {ok:false, no:long, reason:`決まり字が長すぎます。今の決まり字は「${yShow(long, L[long])}」でした`};
+  const short = rem.filter(c => n.length < L[c] && yForms(c, n.length).includes(n));
+  if (short.length) return {ok:false, reason:`決まり字が足りません（「${short.slice(0,4).map(c=>yShow(c,L[c])).join("」「")}」${short.length>4?"など":""}が残っていました）`};
+  const dup = used.find(u => yForms(u, n.length).includes(n) || yForms(u, Y_KEY[u].length).some(f => n.startsWith(f)));
+  if (dup) return {ok:false, no:dup, reason:`「${yShow(dup, CARD[dup].km.length)}」（${dup}番）はもう出ています`};
+  const nl = unDakuY(norm(input, true));                              // 濁点を省いた場合は、まぎれなければOK
+  const loose = rem.filter(c => yForms(c, L[c]).some(f => unDakuY(f)===nl));
+  if (loose.length===1) return {ok:true, no:loose[0], L:L[loose[0]]};
+  return {ok:false, reason:"その決まり字の札はありません"};
+}
+
+let Y = null;              // 進行中の山手線ゲーム
+let yamaOpp = "cpu", yamaCd = 5;
+try { yamaCd = +localStorage.getItem("ka_yamaCd") || 5; yamaOpp = localStorage.getItem("ka_yamaOpp") || "cpu"; } catch(e){}
+if (![3,5,7,10].includes(yamaCd)) yamaCd = 5;
+function renderYamaOpts(){
+  $$("#yamaOpp button").forEach(b => b.classList.toggle("on", b.dataset.o===yamaOpp));
+  $$("#yamaCd button").forEach(b => b.classList.toggle("on", +b.dataset.c===yamaCd));
+  $("#yamaCpuBox").classList.toggle("hidden", yamaOpp!=="cpu");
+  $("#yamaFriendBox").classList.toggle("hidden", yamaOpp!=="friend");
+  const guest = !user || user.guest || !fb;
+  $("#yamaNeedLogin").classList.toggle("hidden", !guest);
+  $("#btnYamaCreate").disabled = guest; $("#btnYamaJoin").disabled = guest;
+}
+$$("#yamaOpp button").forEach(b => b.onclick = () => { yamaOpp = b.dataset.o; try{localStorage.setItem("ka_yamaOpp",yamaOpp);}catch(_){} renderYamaOpts(); });
+$$("#yamaCd button").forEach(b => b.onclick = () => { yamaCd = +b.dataset.c; try{localStorage.setItem("ka_yamaCd",yamaCd);}catch(_){} renderYamaOpts(); });
+
+// ---- 共通の進行（moves: [{me:true/false, no, t}]）----
+const yUsed = () => Y.moves.map(m=>m.no);
+const yNow = () => Y.mode==="friend" ? serverNow() : Date.now();
+function yMyTurn(){ return Y.status==="play" && (Y.moves.length % 2 === 0) === Y.meFirst; }
+function startYamaUI(){
+  show("yama");
+  $("#yInput").value = "";
+  clearInterval(Y.tick); Y.tick = setInterval(yamaTick, 100);
+  renderYama();
+}
+function renderYama(){
+  if (!Y) return;
+  $("#yVs").textContent = `あなた vs ${Y.oppName}`;
+  $("#yCdLabel").textContent = `持ち時間 ${Y.cd}秒`;
+  $("#yCount").textContent = `出た札 ${Y.moves.length} / 100`;
+  const st = $("#yStatus"), mine = yMyTurn();
+  st.className = "ystatus" + (Y.status==="play" ? (mine ? " me" : " opp") : "");
+  st.textContent = Y.status==="lobby" ? "相手の参加を待っています…" : Y.status==="countdown" ? "まもなく開始" : Y.status==="play" ? (mine ? "あなたの番" : `${Y.oppName}の番`) : Y.status==="closed" ? "部屋は閉じられました" : "ゲーム終了";
+  const inp = $("#yInput"), canType = Y.status==="play" && mine;
+  inp.disabled = !canType; $("#ySend").disabled = !canType;
+  if (canType && document.activeElement!==inp) setTimeout(()=>inp.focus(), 0);
+  const last = Y.moves[Y.moves.length-1];
+  $("#yLast").innerHTML = Y.status==="lobby" ? `部屋コード <span class="roomcode">${esc(Y.code)}</span> を友達に伝えてください。相手が入ると自動で始まります。`
+    : last ? `${last.me ? "あなた" : esc(Y.oppName)}：<b>${esc(last.t)}</b> <span class="hint">（${last.no}番）</span>` : (Y.status==="play" ? (mine ? "あなたが先攻です。" : `${esc(Y.oppName)}が先攻です。`) : "");
+  const H = $("#yHist"); H.className = "yhist" + (Y.status==="over" ? " done" : "");
+  H.innerHTML = Y.moves.map(m => `<span class="${m.me?"me":""}" data-no="${m.no}">${esc(m.t)}<i>${m.no}</i></span>`).join("") || `<span class="hint" style="border:none">まだありません</span>`;
+  $("#yHistNote").textContent = Y.status==="over" ? "（タップで歌の全文）" : "";
+  if (Y.status==="over") H.querySelectorAll("[data-no]").forEach(e => e.onclick = () => showPoem(+e.dataset.no));
+  const R = $("#yResult"), B = $("#yBtns"); B.innerHTML = "";
+  const mk = (t,cls,fn) => { const b=document.createElement("button"); b.textContent=t; if(cls) b.className=cls; b.onclick=fn; B.appendChild(b); };
+  if (Y.status==="over"){
+    const draw = Y.loser==null, win = !draw && !Y.loserIsMe;
+    const mineN = Y.moves.filter(m=>m.me).length;
+    R.className = "yres " + (draw ? "" : win ? "win" : "lose");
+    const cpu = Y.mode==="cpu";
+    if (cpu) R.className = "yres " + (draw ? "win" : "lose");
+    R.innerHTML = `<div class="big">${cpu ? (draw ? "クリア！100枚言い切りました" : "失敗…") : draw ? "100枚完走！引き分け" : win ? "あなたの勝ち！" : "あなたの負け…"}</div>
+      <div style="margin-top:6px">${Y.wrongText!=null ? `${Y.loserIsMe ? "あなた" : esc(Y.oppName)}の答え「${esc(Y.wrongText)}」：` : ""}${esc(Y.reason||"")}</div>
+      <div class="hint" style="margin-top:4px">あなたが言えた札：${mineN}枚　全体：${Y.moves.length}枚</div>`;
+    mk("もう一度","primary",()=> Y.mode==="cpu" ? startYamaCpu(Y.cd) : yamaRematch());
+    mk("ミニゲームへ","",()=>{ show("mini"); });
+  } else {
+    R.className = ""; R.innerHTML = "";
+    mk(Y.status==="lobby" ? "部屋を閉じる" : "やめる","",()=>show("mini"));
+  }
+}
+function yamaTick(){
+  if (!Y) return;
+  const now = yNow(), bar = $("#yBar"), box = $("#yBarBox"), sec = $("#ySec");
+  if (Y.status==="countdown" || (Y.status==="play" && now < Y.startMs)){
+    const r = Math.max(0, Math.ceil((Y.startMs - now)/1000)); sec.textContent = r ? String(r) : ""; bar.style.width = "100%"; box.classList.remove("low");
+    if (Y.mode==="cpu" && now >= Y.startMs && Y.status==="countdown"){ Y.status = "play"; Y.deadline = now + Y.cd*1000; renderYama(); cpuMaybeMove(); }
+    if (Y.mode==="friend" && Y.status==="countdown" && now >= Y.startMs){ Y.status = "play"; renderYama(); }
+    return;
+  }
+  if (Y.status!=="play"){ sec.textContent = ""; bar.style.width = "0%"; return; }
+  const left = Math.max(0, Y.deadline - now);
+  bar.style.width = (left / (Y.cd*1000) * 100) + "%";
+  box.classList.toggle("low", left < 1500);
+  sec.textContent = (left/1000).toFixed(1);
+  if (left <= 0){
+    const mine = yMyTurn();
+    if (Y.mode==="cpu") yamaOver(mine, "時間切れ", null);
+    else if (mine || now > Y.deadline + 1500) friendTimeout();
+  }
+}
+function yamaOver(loserIsMe, reason, wrongText){
+  Y.status = "over"; Y.loser = loserIsMe==null ? null : (loserIsMe ? "me" : "opp"); Y.loserIsMe = !!loserIsMe; Y.reason = reason; Y.wrongText = wrongText;
+  clearTimeout(Y.cpuTimer);
+  if (loserIsMe===false || (Y.mode==="cpu" && loserIsMe==null)) beepWin(); else beep();
+  renderYama();
+}
+function beepWin(){ try { fanfare(); } catch(e){} }
+$("#yInput").addEventListener("keydown", e => { if (e.key==="Enter" && (e.isComposing || e.keyCode===229)) e.preventDefault(); });
+$("#yForm").onsubmit = e => {
+  e.preventDefault();
+  if (!Y || !yMyTurn()) return;
+  const text = $("#yInput").value.trim(); $("#yInput").value = "";
+  if (Y.mode==="cpu") cpuHumanMove(text); else friendMove(text);
+};
+
+// ---- コンピュータ対戦 ----
+function startYamaCpu(cd){
+  leaveYama();
+  Y = {mode:"cpu", cd, moves:[], status:"countdown", meFirst: Math.random()<.5, oppName:"コンピュータ", startMs: Date.now()+3000};
+  startYamaUI();
+}
+$("#btnYamaCpu").onclick = () => startYamaCpu(yamaCd);
+$("#lnkYama").onclick = e => { e.preventDefault(); $("#yamaPanel").scrollIntoView({behavior:"smooth", block:"start"}); };
+function cpuHumanMove(text){
+  const j = yJudge(text, yUsed());
+  if (!j.ok) return yamaOver(true, j.reason, text);
+  Y.moves.push({me:true, no:j.no, t:text});
+  afterMove();
+}
+function afterMove(){
+  if (Y.moves.length >= 100) return yamaOver(null, "100枚すべて言い切りました", null);
+  Y.deadline = yNow() + Y.cd*1000;
+  renderYama(); cpuMaybeMove();
+}
+// コンピュータ：残っている札からランダムに選び、必ず今の決まり字で正しく答える（コンピュータ対戦は100枚言い切ればクリア）
+function cpuMaybeMove(){
+  if (!Y || Y.mode!=="cpu" || Y.status!=="play" || yMyTurn()) return;
+  const used = yUsed(), rem = ALL_NOS.filter(n=>!used.includes(n)), L = yKms(rem);
+  const c = rem[Math.floor(Math.random()*rem.length)];
+  const text = yShow(c, L[c]);
+  const wait = Math.min(Y.cd*1000*0.75, 700 + Math.random()*Math.min(2600, Y.cd*400));
+  Y.cpuTimer = setTimeout(() => {
+    if (!Y || Y.mode!=="cpu" || Y.status!=="play" || yMyTurn()) return;
+    const j = yJudge(text, yUsed());
+    if (!j.ok) return yamaOver(false, j.reason, text);
+    Y.moves.push({me:false, no:j.no, t:text});
+    afterMove();
+  }, wait);
+}
+
+// ---- 友達と対戦（Firestore: yrooms/{code}）----
+function yRoomRef(code){ return fb.fs.doc(fb.db, "yrooms", code); }
+async function createYamaRoom(){
+  const {getDoc,setDoc} = fb.fs;
+  for (let i=0;i<10;i++){
+    const code = String(Math.floor(100000 + Math.random()*900000));
+    try {
+      const ex = await getDoc(yRoomRef(code));
+      if (ex.exists() && Date.now() - (ex.data().createdAt||0) < 24*3600e3) continue;
+      await setDoc(yRoomRef(code), {code, host:user.uid, guest:null, status:"lobby", cd:yamaCd, moves:[], first:null, startMs:0, deadline:0, loser:null, reason:"", wrong:null, round:0, createdAt:Date.now()});
+      return enterYamaRoom(code);
+    } catch(e){ console.warn(e); }
+  }
+  toast("部屋を作れませんでした");
+}
+async function joinYamaRoom(code){
+  const {runTransaction} = fb.fs;
+  try {
+    await runTransaction(fb.db, async tx => {
+      const s = await tx.get(yRoomRef(code));
+      if (!s.exists()) throw new Error("部屋が見つかりません");
+      const r = s.data();
+      if (r.host===user.uid || r.guest===user.uid) return;
+      if (r.guest) throw new Error("この部屋はすでに2人そろっています");
+      if (r.status!=="lobby") throw new Error("この部屋はもう使えません");
+      tx.update(yRoomRef(code), {guest:user.uid});
+    });
+    await enterYamaRoom(code);
+  } catch(e){ toast(e.message || "部屋に入れませんでした"); }
+}
+$("#btnYamaCreate").onclick = () => createYamaRoom();
+$("#btnYamaJoin").onclick = () => { const c = $("#yamaCode").value.replace(/\D/g,""); if (c.length!==6) return toast("6桁のコードを入力してください"); joinYamaRoom(c); };
+async function enterYamaRoom(code){
+  leaveYama();
+  Y = {mode:"friend", code, cd:yamaCd, moves:[], status:"lobby", meFirst:true, oppName:"相手", oppUid:null, unsub:null};
+  startYamaUI();
+  Y.unsub = fb.fs.onSnapshot(yRoomRef(code), s => {
+    if (!Y || Y.code!==code) return;
+    const r = s.data(); if (!r) return;
+    Y.room = r; Y.isHost = r.host===user.uid; Y.cd = r.cd;
+    const oppUid = Y.isHost ? r.guest : r.host;
+    if (oppUid && oppUid!==Y.oppUid){ Y.oppUid = oppUid; getNick(oppUid).then(n => { if (Y && Y.oppUid===oppUid){ Y.oppName = friendLabel(oppUid, n); renderYama(); } }); }
+    Y.moves = (r.moves||[]).map(m => ({me: m.by===user.uid, no:m.no, t:m.t}));
+    Y.meFirst = r.first===user.uid; Y.startMs = r.startMs; Y.deadline = r.deadline;
+    if (r.status==="lobby") Y.status = "lobby";
+    else if (r.status==="play") Y.status = serverNow() < r.startMs ? "countdown" : "play";
+    else if (r.status==="over"){
+      if (Y.status!=="over"){ Y.status = "over"; Y.loser = r.loser; Y.loserIsMe = r.loser===user.uid; Y.reason = r.reason; Y.wrongText = r.wrong;
+        if (r.loser && r.loser!==user.uid) beepWin(); else beep(); }
+      else { Y.loser = r.loser; Y.loserIsMe = r.loser===user.uid; Y.reason = r.reason; Y.wrongText = r.wrong; }
+    }
+    else if (r.status==="closed") Y.status = "closed";
+    // 2人そろったらホストが開始する
+    if (Y.isHost && r.status==="lobby" && r.guest) startFriendRound();
+    renderYama();
+  });
+}
+async function startFriendRound(){
+  const r = Y.room, start = serverNow() + 3000;
+  await fb.fs.updateDoc(yRoomRef(Y.code), {status:"play", moves:[], first: Math.random()<.5 ? r.host : r.guest, startMs:start, deadline:start + r.cd*1000, loser:null, reason:"", wrong:null, round:(r.round||0)+1}).catch(console.error);
+}
+async function yamaRematch(){
+  if (!Y || Y.mode!=="friend" || !Y.room) return;
+  if (!Y.room.guest || !Y.room.host) return toast("相手が部屋にいません");
+  await startFriendRound();
+}
+// 答えを送る（自分の番のときだけ。判定は送る側で行い、取引で順番と時間を確認する）
+async function friendMove(text){
+  const {runTransaction} = fb.fs, code = Y.code;
+  try {
+    await runTransaction(fb.db, async tx => {
+      const s = await tx.get(yRoomRef(code)); const r = s.data();
+      if (!r || r.status!=="play") return;
+      const myTurn = (r.moves.length % 2 === 0) === (r.first===user.uid);
+      if (!myTurn) return;
+      if (serverNow() > r.deadline + 300){ tx.update(yRoomRef(code), {status:"over", loser:user.uid, reason:"時間切れ", wrong:null}); return; }
+      const j = yJudge(text, r.moves.map(m=>m.no));
+      if (!j.ok){ tx.update(yRoomRef(code), {status:"over", loser:user.uid, reason:j.reason, wrong:text}); return; }
+      const moves = [...r.moves, {by:user.uid, no:j.no, t:text}];
+      if (moves.length >= 100) tx.update(yRoomRef(code), {moves, status:"over", loser:null, reason:"100枚すべて言い切りました", wrong:null});
+      else tx.update(yRoomRef(code), {moves, deadline: serverNow() + r.cd*1000});
+    });
+  } catch(e){ console.error(e); toast("送信に失敗しました"); }
+}
+async function friendTimeout(){
+  if (!Y || Y.mode!=="friend" || Y.timeoutSent===Y.moves.length+"/"+(Y.room&&Y.room.round)) return;
+  Y.timeoutSent = Y.moves.length+"/"+(Y.room&&Y.room.round);
+  const {runTransaction} = fb.fs, code = Y.code;
+  try {
+    await runTransaction(fb.db, async tx => {
+      const s = await tx.get(yRoomRef(code)); const r = s.data();
+      if (!r || r.status!=="play" || serverNow() <= r.deadline) return;
+      const turnUid = (r.moves.length % 2 === 0) ? r.first : (r.first===r.host ? r.guest : r.host);
+      tx.update(yRoomRef(code), {status:"over", loser:turnUid, reason:"時間切れ", wrong:null});
+    });
+  } catch(e){ console.error(e); }
+}
+function leaveYama(){
+  if (!Y) return;
+  clearInterval(Y.tick); clearTimeout(Y.cpuTimer);
+  if (Y.mode==="friend"){
+    try { Y.unsub && Y.unsub(); } catch(e){}
+    const r = Y.room;
+    if (r && r.status==="play") fb.fs.updateDoc(yRoomRef(Y.code), {status:"over", loser:user.uid, reason:"相手が退出しました", wrong:null}).catch(()=>{});
+    else if (r && ((Y.isHost && r.status==="lobby") || r.status==="over")) fb.fs.updateDoc(yRoomRef(Y.code), {status:"closed"}).catch(()=>{});
+  }
+  Y = null;
+}
+
+/* =========================================================
    ホーム：各モードの入口（画像は実際の札の描画で組み立てたシーン）
    ========================================================= */
 function scCard(scene, no, x, y, o={}){
@@ -2554,7 +2895,7 @@ const TOP_MODES = [
     [8,18,28,38,58,68,78].forEach((x,i) => scCard(S, [3,17,40,88,61,29,95][i], x, 62, {back:true}));
     scEl(S, "dlg", `<div class="t">自陣 下段 の札は？</div><div class="in">あきの</div><div class="bt"><i>わからない</i><i class="p">判定</i></div>`);
   }},
-  {go:"mini", name:"ミニゲーム", sub:"条件に合う札だけを覚える短いゲーム", draw(S){
+  {go:"mini", name:"ミニゲーム", sub:"条件に合う札だけを覚えるゲーム・100枚山手線ゲーム", draw(S){
     scEl(S, "chip", "娘、房干せ", "left:3%;top:4%");
     [[4,50],[14,50],[80,50],[90,50],[4,78],[90,14]].forEach(([x,y],i) => scCard(S, [11,25,48,83,64,99][i], x, y, {back:true}));
     scCard(S, 77, 30, 28, {cw:16, ok:true});
