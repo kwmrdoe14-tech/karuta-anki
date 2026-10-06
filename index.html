@@ -440,7 +440,10 @@ td.low{color:var(--danger);font-weight:700}
 <section id="view-mini" class="hidden">
   <div class="panel">
     <h2>ミニゲーム</h2>
-    <p style="margin:0 0 6px"><a href="#yamaPanel" id="lnkYama">▶ 100枚山手線ゲーム（コンピュータ・友達と対戦）はこちら</a></p>
+    <div class="seg" id="miniType"><button data-t="board" class="on">札を覚えるゲーム</button><button data-t="yama">100枚山手線ゲーム</button></div>
+  </div>
+  <div class="panel" id="boardPanel">
+    <h2>札を覚えるゲーム</h2>
     <p class="hint">ふつうの50枚の盤面から、条件に合う札だけを覚えて、その札だけ答えます。判定は「記録」「対戦」と同じ。答え終わったら「回答を終了」で正解率が出ます（結果は保存されません）。</p>
     <h3>ゲーム</h3>
     <div class="mini-list" id="miniList"></div>
@@ -459,6 +462,9 @@ td.low{color:var(--danger);font-weight:700}
     <div class="seg" id="yamaOpp"><button data-o="cpu" class="on">コンピュータ</button><button data-o="friend">友達</button></div>
     <h3>持ち時間（1回ごと）</h3>
     <div class="seg" id="yamaCd"><button data-c="3">3秒</button><button data-c="5" class="on">5秒</button><button data-c="7">7秒</button><button data-c="10">10秒</button></div>
+    <h3>出た札の表示</h3>
+    <div class="seg" id="yamaHist"><button data-h="1" class="on">表示する</button><button data-h="0">表示しない</button></div>
+    <p class="hint" style="margin:4px 0 0">「表示しない」にすると、ゲーム中は直前の1枚だけが見えます（終了後は全部表示）。友達と対戦では部屋を作った人の設定になります。</p>
     <div id="yamaCpuBox" class="row" style="margin-top:18px">
       <button class="primary" id="btnYamaCpu" style="padding:12px 28px;font-size:17px">はじめる</button>
     </div>
@@ -2633,12 +2639,13 @@ function yJudge(input, used){
 }
 
 let Y = null;              // 進行中の山手線ゲーム
-let yamaOpp = "cpu", yamaCd = 5;
-try { yamaCd = +localStorage.getItem("ka_yamaCd") || 5; yamaOpp = localStorage.getItem("ka_yamaOpp") || "cpu"; } catch(e){}
+let yamaOpp = "cpu", yamaCd = 5, yamaShowHist = true;
+try { yamaCd = +localStorage.getItem("ka_yamaCd") || 5; yamaOpp = localStorage.getItem("ka_yamaOpp") || "cpu"; yamaShowHist = localStorage.getItem("ka_yamaHist") !== "0"; } catch(e){}
 if (![3,5,7,10].includes(yamaCd)) yamaCd = 5;
 function renderYamaOpts(){
   $$("#yamaOpp button").forEach(b => b.classList.toggle("on", b.dataset.o===yamaOpp));
   $$("#yamaCd button").forEach(b => b.classList.toggle("on", +b.dataset.c===yamaCd));
+  $$("#yamaHist button").forEach(b => b.classList.toggle("on", (b.dataset.h==="1")===yamaShowHist));
   $("#yamaCpuBox").classList.toggle("hidden", yamaOpp!=="cpu");
   $("#yamaFriendBox").classList.toggle("hidden", yamaOpp!=="friend");
   const guest = !user || user.guest || !fb;
@@ -2646,6 +2653,7 @@ function renderYamaOpts(){
   $("#btnYamaCreate").disabled = guest; $("#btnYamaJoin").disabled = guest;
 }
 $$("#yamaOpp button").forEach(b => b.onclick = () => { yamaOpp = b.dataset.o; try{localStorage.setItem("ka_yamaOpp",yamaOpp);}catch(_){} renderYamaOpts(); });
+$$("#yamaHist button").forEach(b => b.onclick = () => { yamaShowHist = b.dataset.h==="1"; try{localStorage.setItem("ka_yamaHist", yamaShowHist?"1":"0");}catch(_){} renderYamaOpts(); });
 $$("#yamaCd button").forEach(b => b.onclick = () => { yamaCd = +b.dataset.c; try{localStorage.setItem("ka_yamaCd",yamaCd);}catch(_){} renderYamaOpts(); });
 
 // ---- 共通の進行（moves: [{me:true/false, no, t}]）----
@@ -2661,7 +2669,7 @@ function startYamaUI(){
 function renderYama(){
   if (!Y) return;
   $("#yVs").textContent = `あなた vs ${Y.oppName}`;
-  $("#yCdLabel").textContent = `持ち時間 ${Y.cd}秒`;
+  $("#yCdLabel").textContent = `持ち時間 ${Y.cd}秒・出た札${Y.showHist ? "表示" : "非表示"}`;
   $("#yCount").textContent = `出た札 ${Y.moves.length} / 100`;
   const st = $("#yStatus"), mine = yMyTurn();
   st.className = "ystatus" + (Y.status==="play" ? (mine ? " me" : " opp") : "");
@@ -2673,8 +2681,9 @@ function renderYama(){
   $("#yLast").innerHTML = Y.status==="lobby" ? `部屋コード <span class="roomcode">${esc(Y.code)}</span> を友達に伝えてください。相手が入ると自動で始まります。`
     : last ? `${last.me ? "あなた" : esc(Y.oppName)}：<b>${esc(last.t)}</b> <span class="hint">（${last.no}番）</span>` : (Y.status==="play" ? (mine ? "あなたが先攻です。" : `${esc(Y.oppName)}が先攻です。`) : "");
   const H = $("#yHist"); H.className = "yhist" + (Y.status==="over" ? " done" : "");
-  H.innerHTML = Y.moves.map(m => `<span class="${m.me?"me":""}" data-no="${m.no}">${esc(m.t)}<i>${m.no}</i></span>`).join("") || `<span class="hint" style="border:none">まだありません</span>`;
-  $("#yHistNote").textContent = Y.status==="over" ? "（タップで歌の全文）" : "";
+  if (!Y.showHist && Y.status!=="over"){ H.innerHTML = `<span class="hint" style="border:none">ゲーム中は表示しません（終了後に表示されます）</span>`; $("#yHistNote").textContent = ""; }
+  else H.innerHTML = Y.moves.map(m => `<span class="${m.me?"me":""}" data-no="${m.no}">${esc(m.t)}<i>${m.no}</i></span>`).join("") || `<span class="hint" style="border:none">まだありません</span>`;
+  if (Y.showHist || Y.status==="over") $("#yHistNote").textContent = Y.status==="over" ? "（タップで歌の全文）" : "";
   if (Y.status==="over") H.querySelectorAll("[data-no]").forEach(e => e.onclick = () => showPoem(+e.dataset.no));
   const R = $("#yResult"), B = $("#yBtns"); B.innerHTML = "";
   const mk = (t,cls,fn) => { const b=document.createElement("button"); b.textContent=t; if(cls) b.className=cls; b.onclick=fn; B.appendChild(b); };
@@ -2687,7 +2696,7 @@ function renderYama(){
     R.innerHTML = `<div class="big">${cpu ? (draw ? "クリア！100枚言い切りました" : "失敗…") : draw ? "100枚完走！引き分け" : win ? "あなたの勝ち！" : "あなたの負け…"}</div>
       <div style="margin-top:6px">${Y.wrongText!=null ? `${Y.loserIsMe ? "あなた" : esc(Y.oppName)}の答え「${esc(Y.wrongText)}」：` : ""}${esc(Y.reason||"")}</div>
       <div class="hint" style="margin-top:4px">あなたが言えた札：${mineN}枚　全体：${Y.moves.length}枚</div>`;
-    mk("もう一度","primary",()=> Y.mode==="cpu" ? startYamaCpu(Y.cd) : yamaRematch());
+    mk("もう一度","primary",()=> Y.mode==="cpu" ? (yamaShowHist = Y.showHist, startYamaCpu(Y.cd)) : yamaRematch());
     mk("ミニゲームへ","",()=>{ show("mini"); });
   } else {
     R.className = ""; R.innerHTML = "";
@@ -2732,11 +2741,19 @@ $("#yForm").onsubmit = e => {
 // ---- コンピュータ対戦 ----
 function startYamaCpu(cd){
   leaveYama();
-  Y = {mode:"cpu", cd, moves:[], status:"countdown", meFirst: Math.random()<.5, oppName:"コンピュータ", startMs: Date.now()+3000};
+  Y = {mode:"cpu", cd, showHist: yamaShowHist, moves:[], status:"countdown", meFirst: Math.random()<.5, oppName:"コンピュータ", startMs: Date.now()+3000};
   startYamaUI();
 }
 $("#btnYamaCpu").onclick = () => startYamaCpu(yamaCd);
-$("#lnkYama").onclick = e => { e.preventDefault(); $("#yamaPanel").scrollIntoView({behavior:"smooth", block:"start"}); };
+let miniType = "board";
+try { miniType = localStorage.getItem("ka_miniType") || "board"; } catch(e){}
+function renderMiniType(){
+  $$("#miniType button").forEach(b => b.classList.toggle("on", b.dataset.t===miniType));
+  $("#boardPanel").classList.toggle("hidden", miniType!=="board");
+  $("#yamaPanel").classList.toggle("hidden", miniType!=="yama");
+}
+$$("#miniType button").forEach(b => b.onclick = () => { miniType = b.dataset.t; try{localStorage.setItem("ka_miniType",miniType);}catch(_){} renderMiniType(); });
+renderMiniType();
 function cpuHumanMove(text){
   const j = yJudge(text, yUsed());
   if (!j.ok) return yamaOver(true, j.reason, text);
@@ -2773,7 +2790,7 @@ async function createYamaRoom(){
     try {
       const ex = await getDoc(yRoomRef(code));
       if (ex.exists() && Date.now() - (ex.data().createdAt||0) < 24*3600e3) continue;
-      await setDoc(yRoomRef(code), {code, host:user.uid, guest:null, status:"lobby", cd:yamaCd, moves:[], first:null, startMs:0, deadline:0, loser:null, reason:"", wrong:null, round:0, createdAt:Date.now()});
+      await setDoc(yRoomRef(code), {code, host:user.uid, guest:null, status:"lobby", cd:yamaCd, showHist:yamaShowHist, moves:[], first:null, startMs:0, deadline:0, loser:null, reason:"", wrong:null, round:0, createdAt:Date.now()});
       return enterYamaRoom(code);
     } catch(e){ console.warn(e); }
   }
@@ -2798,12 +2815,12 @@ $("#btnYamaCreate").onclick = () => createYamaRoom();
 $("#btnYamaJoin").onclick = () => { const c = $("#yamaCode").value.replace(/\D/g,""); if (c.length!==6) return toast("6桁のコードを入力してください"); joinYamaRoom(c); };
 async function enterYamaRoom(code){
   leaveYama();
-  Y = {mode:"friend", code, cd:yamaCd, moves:[], status:"lobby", meFirst:true, oppName:"相手", oppUid:null, unsub:null};
+  Y = {mode:"friend", code, cd:yamaCd, showHist:true, moves:[], status:"lobby", meFirst:true, oppName:"相手", oppUid:null, unsub:null};
   startYamaUI();
   Y.unsub = fb.fs.onSnapshot(yRoomRef(code), s => {
     if (!Y || Y.code!==code) return;
     const r = s.data(); if (!r) return;
-    Y.room = r; Y.isHost = r.host===user.uid; Y.cd = r.cd;
+    Y.room = r; Y.isHost = r.host===user.uid; Y.cd = r.cd; Y.showHist = r.showHist !== false;
     const oppUid = Y.isHost ? r.guest : r.host;
     if (oppUid && oppUid!==Y.oppUid){ Y.oppUid = oppUid; getNick(oppUid).then(n => { if (Y && Y.oppUid===oppUid){ Y.oppName = friendLabel(oppUid, n); renderYama(); } }); }
     Y.moves = (r.moves||[]).map(m => ({me: m.by===user.uid, no:m.no, t:m.t}));
