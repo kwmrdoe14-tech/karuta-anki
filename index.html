@@ -153,6 +153,28 @@ h3{font-size:15px;margin:16px 0 8px}
 .yhist.done span{cursor:pointer}
 .roomline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
 
+/* フラッシュ暗記 */
+.flash-stage{position:relative;height:min(62vh,440px);display:flex;align-items:center;justify-content:center;border-radius:12px;
+  background:repeating-linear-gradient(90deg,var(--tatami) 0 6px,var(--tatami2) 6px 8px)}
+.flash-stage .fc{position:relative;--cw:min(150px,26vw);width:var(--cw);height:calc(var(--cw)*1.38)}
+.flash-stage .fc .card{cursor:default}
+.flash-stage .cnt{font-family:"Shippori Mincho B1",serif;font-weight:800;font-size:72px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.45)}
+.flash-prog{position:absolute;left:12px;top:10px;background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:2px 12px;font-size:14px;font-variant-numeric:tabular-nums}
+.flash-ans{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin:10px 0}
+.flash-ans label{display:flex;align-items:center;gap:8px}
+.flash-ans label b{min-width:2.8em;font-size:14px;color:var(--ink2)}
+.flash-ans input{flex:1;min-width:0;font-size:18px;padding:8px 10px}
+.flash-res{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:12px}
+.flash-res .it{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--panel)}
+.flash-res .it .fc{position:relative;--cw:46px;width:var(--cw);height:calc(var(--cw)*1.38);flex:none}
+.flash-res .it.ok{border-color:var(--ok)} .flash-res .it.ng{border-color:var(--danger)}
+.flash-res .mk{font-size:22px;font-weight:800} .flash-res .ok .mk{color:var(--ok)} .flash-res .ng .mk{color:var(--danger)}
+.flash-score{font-family:"Shippori Mincho B1",serif;font-weight:800;font-size:34px}
+.flash-score.perfect{color:#b8860b}
+#flashN,#flashT,#miniType{display:flex;flex-wrap:wrap;width:fit-content;max-width:100%}
+#flashN button,#flashT button,#miniType button{white-space:nowrap}
+@media (max-width:600px){#flashN button,#flashT button{padding:8px 11px}#miniType button{padding:8px 12px}}
+
 /* login */
 #view-login{max-width:420px;margin:40px auto}
 #view-login .panel{padding:24px}
@@ -440,7 +462,7 @@ td.low{color:var(--danger);font-weight:700}
 <section id="view-mini" class="hidden">
   <div class="panel">
     <h2>ミニゲーム</h2>
-    <div class="seg" id="miniType"><button data-t="board" class="on">札を覚えるゲーム</button><button data-t="yama">100枚山手線ゲーム</button></div>
+    <div class="seg" id="miniType"><button data-t="board" class="on">札を覚えるゲーム</button><button data-t="yama">100枚山手線ゲーム</button><button data-t="flash">フラッシュ暗記</button></div>
   </div>
   <div class="panel" id="boardPanel">
     <h2>札を覚えるゲーム</h2>
@@ -453,6 +475,17 @@ td.low{color:var(--danger);font-weight:700}
     <label class="row"><input type="checkbox" id="miniUseFixed" checked> 登録した定位置を使う</label>
     <div class="row" style="margin-top:18px">
       <button class="primary" id="btnMiniDeal" style="padding:12px 28px;font-size:17px">札を配る</button>
+    </div>
+  </div>
+  <div class="panel hidden" id="flashPanel">
+    <h2>フラッシュ暗記</h2>
+    <p class="hint">フラッシュ暗算のように、札が1枚ずつパッと表示されて消えます。全部出終わったら、出てきた順に決まり字（それ以上でも可）を答えます。仮名遣いは「札開け」と同じく、歴史的・現代どちらでもOK。歌番号でも答えられます。</p>
+    <h3>札の枚数</h3>
+    <div class="seg" id="flashN"></div>
+    <h3>1枚の表示時間</h3>
+    <div class="seg" id="flashT"></div>
+    <div class="row" style="margin-top:18px">
+      <button class="primary" id="btnFlash" style="padding:12px 28px;font-size:17px">はじめる</button>
     </div>
   </div>
   <div class="panel" id="yamaPanel">
@@ -473,6 +506,14 @@ td.low{color:var(--danger);font-weight:700}
       <div class="roomline"><button class="primary" id="btnYamaCreate">部屋を作る</button><span class="hint">6桁のコードを友達に伝えます</span></div>
       <div class="roomline"><input id="yamaCode" inputmode="numeric" maxlength="6" placeholder="6桁の部屋コード" style="width:160px"><button id="btnYamaJoin">部屋に入る</button></div>
     </div>
+  </div>
+</section>
+
+<!-- ===== フラッシュ暗記 ===== -->
+<section id="view-flash" class="hidden">
+  <div class="panel">
+    <div class="yama-head"><b>フラッシュ暗記</b><span class="hint" id="flashInfo"></span></div>
+    <div id="flashBody" style="margin-top:10px"></div>
   </div>
 </section>
 
@@ -1092,12 +1133,13 @@ function show(name){
     if (Y.status==="play" || Y.status==="countdown"){ if (!confirm("ゲームをやめますか？（友達との対戦では負けになります）")) return; }
     leaveYama();
   }
+  if (current==="flash" && name!=="flash") stopFlash();
   current = name;
   if (name==="mini") renderYamaOpts();
   if (name!=="game"){ hideMiniResult(); $("#knockBar").classList.add("hidden"); }
-  for (const v of ["login","top","home","mini","yama","game","positions","stats","battle","badges"]) $("#view-"+v).classList.toggle("hidden", v!==name);
+  for (const v of ["login","top","home","mini","yama","flash","game","positions","stats","battle","badges"]) $("#view-"+v).classList.toggle("hidden", v!==name);
   $("#topbar").classList.toggle("hidden", name==="login");
-  $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go===(G&&G.mode==="battle"?"battle":G&&G.mode==="mini"?"mini":"home")) || (name==="yama" && b.dataset.go==="mini")));
+  $$("header nav button").forEach(b => b.classList.toggle("on", b.dataset.go===name || (name==="game" && b.dataset.go===(G&&G.mode==="battle"?"battle":G&&G.mode==="mini"?"mini":"home")) || ((name==="yama" || name==="flash") && b.dataset.go==="mini")));
   if (name==="top") { renderTop(); requestAnimationFrame(sizeScenes); }
   if (name==="home") refreshHome();
   if (name==="mini") renderMiniOpts();
@@ -2745,12 +2787,87 @@ function startYamaCpu(cd){
   startYamaUI();
 }
 $("#btnYamaCpu").onclick = () => startYamaCpu(yamaCd);
+/* ---------- フラッシュ暗記 ---------- */
+let flashN = 5, flashT = 1.5, F = null;
+try { flashN = +localStorage.getItem("ka_flashN") || 5; flashT = +localStorage.getItem("ka_flashT") || 1.5; } catch(e){}
+if (!(flashN>=3 && flashN<=10)) flashN = 5;
+if (![0.5,1,1.5,2,2.5,3].includes(flashT)) flashT = 1.5;
+function renderFlashOpts(){
+  $("#flashN").innerHTML = [3,4,5,6,7,8,9,10].map(n=>`<button data-n="${n}" class="${n===flashN?"on":""}">${n}枚</button>`).join("");
+  $("#flashT").innerHTML = [0.5,1,1.5,2,2.5,3].map(t=>`<button data-t="${t}" class="${t===flashT?"on":""}">${t.toFixed(1)}秒</button>`).join("");
+  $$("#flashN button").forEach(b => b.onclick = () => { flashN = +b.dataset.n; try{localStorage.setItem("ka_flashN",flashN);}catch(_){} renderFlashOpts(); });
+  $$("#flashT button").forEach(b => b.onclick = () => { flashT = +b.dataset.t; try{localStorage.setItem("ka_flashT",flashT);}catch(_){} renderFlashOpts(); });
+}
+renderFlashOpts();
+function flashCard(no, cw){
+  const w = document.createElement("div"); w.className = "fc"; if (cw) w.style.setProperty("--cw", cw);
+  const el = cardEl({no, side:"me", correct:null, km:false}, true); el.removeAttribute("title"); w.appendChild(el); return w;
+}
+function stopFlash(){ if (F){ F.timers.forEach(clearTimeout); F = null; } }
+function startFlash(){
+  stopFlash();
+  F = {n: flashN, t: flashT, cards: shuffle(POEMS.map(p=>p[0])).slice(0, flashN), timers: []};
+  show("flash");
+  $("#flashInfo").textContent = `${F.n}枚・1枚${F.t.toFixed(1)}秒`;
+  const B = $("#flashBody");
+  B.innerHTML = `<div class="flash-stage" id="flashStage"><span class="flash-prog" id="flashProg"></span><span class="cnt" id="flashCnt">3</span></div>
+    <div class="row" style="margin-top:10px"><button id="flashQuit">ゲームをやめる</button></div>`;
+  $("#flashQuit").onclick = () => show("mini");
+  const stage = $("#flashStage"), at = (ms, fn) => F.timers.push(setTimeout(fn, ms));
+  const setStage = node => { [...stage.children].forEach(c => { if (c.id!=="flashProg") c.remove(); }); if (node) stage.appendChild(node); };
+  at(1000, () => { $("#flashCnt") && ($("#flashCnt").textContent = "2"); });
+  at(2000, () => { $("#flashCnt") && ($("#flashCnt").textContent = "1"); });
+  const gap = 300, dur = F.t*1000;
+  let tm = 3000;
+  F.cards.forEach((no, i) => {
+    at(tm, () => { setStage(flashCard(no)); $("#flashProg").textContent = `${i+1} / ${F.n}`; });
+    at(tm + dur, () => setStage(null));
+    tm += dur + gap;
+  });
+  at(tm + 200, flashAnswerForm);
+}
+function flashAnswerForm(){
+  if (!F) return;
+  const B = $("#flashBody");
+  B.innerHTML = `<p style="margin:0 0 4px"><b>出てきた順に、決まり字（それ以上でも可）を入力してください。</b><span class="hint">　わからないときは空欄のままでOK</span></p>
+    <form id="flashForm" autocomplete="off"><div class="flash-ans">${F.cards.map((_,i)=>`<label><b>${i+1}枚目</b><input data-i="${i}" autocapitalize="off" spellcheck="false" enterkeyhint="${i<F.n-1?"next":"done"}"></label>`).join("")}</div>
+    <div class="row"><button class="primary" style="padding:10px 24px;font-size:16px">答え合わせ</button><button type="button" id="flashQuit2">ゲームをやめる</button></div></form>`;
+  const ins = $$("#flashForm input");
+  ins.forEach((inp, i) => inp.addEventListener("keydown", e => {
+    if (e.key!=="Enter") return;
+    if (e.isComposing || e.keyCode===229){ e.preventDefault(); return; }
+    e.preventDefault();
+    if (i < ins.length-1) ins[i+1].focus(); else flashResult();
+  }));
+  $("#flashForm").onsubmit = e => { e.preventDefault(); flashResult(); };
+  $("#flashQuit2").onclick = () => show("mini");
+  setTimeout(()=>ins[0].focus(), 50);
+}
+function flashResult(){
+  if (!F) return;
+  const ans = $$("#flashForm input").map(x => x.value.trim());
+  const res = F.cards.map((no,i) => ({no, a: ans[i], ok: identify(ans[i]) === no}));
+  const ok = res.filter(r=>r.ok).length, perfect = ok===F.n;
+  const B = $("#flashBody");
+  B.innerHTML = `<div class="flash-score${perfect?" perfect":""}">${perfect ? "全問正解！" : "結果"}　${ok} / ${F.n}</div>
+    <div class="flash-res">${res.map((r,i)=>`<div class="it ${r.ok?"ok":"ng"}" data-no="${r.no}"><span class="hint">${i+1}</span><span class="slot"></span>
+      <div><div class="mk">${r.ok?"○":"×"}</div><div style="font-weight:700">${esc(CARD[r.no].km)}</div><div class="hint">${r.ok ? "" : (r.a ? "入力：" + esc(r.a) : "未回答")}</div></div></div>`).join("")}</div>
+    <p class="hint" style="margin:8px 0 0">札をタップすると歌の全文が見られます。</p>
+    <div class="row" style="margin-top:14px"><button class="primary" id="flashAgain" style="padding:10px 24px;font-size:16px">もう一度遊ぶ</button><button id="flashEnd">ゲームをやめる</button></div>`;
+  $$(".flash-res .it").forEach(it => { it.querySelector(".slot").replaceWith(flashCard(+it.dataset.no, "46px")); it.style.cursor = "pointer"; it.onclick = () => showPoem(+it.dataset.no); });
+  $("#flashAgain").onclick = () => startFlash();
+  $("#flashEnd").onclick = () => show("mini");
+  if (perfect) { try { fanfare(); } catch(e){} } else beep();
+}
+$("#btnFlash").onclick = () => startFlash();
+
 let miniType = "board";
 try { miniType = localStorage.getItem("ka_miniType") || "board"; } catch(e){}
 function renderMiniType(){
   $$("#miniType button").forEach(b => b.classList.toggle("on", b.dataset.t===miniType));
   $("#boardPanel").classList.toggle("hidden", miniType!=="board");
   $("#yamaPanel").classList.toggle("hidden", miniType!=="yama");
+  $("#flashPanel").classList.toggle("hidden", miniType!=="flash");
 }
 $$("#miniType button").forEach(b => b.onclick = () => { miniType = b.dataset.t; try{localStorage.setItem("ka_miniType",miniType);}catch(_){} renderMiniType(); });
 renderMiniType();
